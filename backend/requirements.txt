@@ -1,0 +1,14 @@
+fastapi
+uvicorn
+langgraph
+langchain
+langchain-openai
+langchain-anthropic
+langchain-community
+python-dotenv
+pydantic
+websockets
+python-multipart
+motor
+# For Ollama support
+langchain-ollama
