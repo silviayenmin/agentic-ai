@@ -81,8 +81,12 @@ export default function App() {
   const [ws, setWs] = useState<WebSocket | null>(null);
   const [isRunning, setIsRunning] = useState(false);
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'sprints' | 'tasks' | 'qa' | 'code'>('sprints');
+  const [activeTab, setActiveTab] = useState<'sprints' | 'tasks' | 'qa' | 'code' | 'preview'>('sprints');
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [greetText, setGreetText] = useState<string | null>(null);
+  const [isGreeting, setIsGreeting] = useState(false);
+  const [workspaceOutput, setWorkspaceOutput] = useState<string | null>(null);
+  const [isWorkspaceOnline, setIsWorkspaceOnline] = useState(false);
 
   // --- WebSocket Connection ---
   useEffect(() => {
@@ -109,7 +113,22 @@ export default function App() {
     };
     socket.onclose = () => setIsRunning(false);
     setWs(socket);
-    return () => socket.close();
+    // --- Check Workspace Status ---
+    const checkWorkspace = async () => {
+      try {
+        const res = await fetch("http://localhost:8001/hello");
+        setIsWorkspaceOnline(res.ok);
+      } catch {
+        setIsWorkspaceOnline(false);
+      }
+    };
+    checkWorkspace();
+    const interval = setInterval(checkWorkspace, 5000);
+
+    return () => {
+      socket.close();
+      clearInterval(interval);
+    };
   }, []);
 
   // --- Auto-Scroll Logs ---
@@ -185,12 +204,24 @@ export default function App() {
         qa_report: { status: 'FAILED', bugs: [], suggestions: [] }
       });
       setSelectedFile(null);
+      setIsWorkspaceOnline(false);
+      setWorkspaceOutput(null);
       setIsRunning(true);
       ws.send(JSON.stringify({ 
         type: "start", 
         requirements,
         user_id: userId 
       }));
+    }
+  };
+
+  const testWorkspace = async () => {
+    try {
+      const res = await fetch("http://localhost:8001/hello");
+      const data = await res.json();
+      setWorkspaceOutput(JSON.stringify(data, null, 2));
+    } catch (e) {
+      setWorkspaceOutput("Error: Server offline or CORS issue");
     }
   };
 
@@ -306,6 +337,7 @@ export default function App() {
                     { id: 'sprints', icon: Layout, label: 'Sprints' },
                     { id: 'tasks', icon: ClipboardList, label: 'Backlog' },
                     { id: 'code', icon: Code, label: 'Workspace' },
+                    { id: 'preview', icon: Zap, label: 'Platform Preview' },
                     { id: 'qa', icon: Bug, label: 'QA Status' }
                   ].map((tab) => (
                     <button 
@@ -403,6 +435,35 @@ export default function App() {
                             </button>
                           ))}
                           {Object.keys(state.codebase).length === 0 && <EmptyState isLoading={isRunning} message="Awaiting source generation..." />}
+                          
+                          {/* Live Preview Card */}
+                          <div className="mt-8 bg-blue-500/10 border border-blue-500/30 p-6 rounded-[2rem] space-y-4">
+                            <div className="flex items-center justify-between">
+                              <h4 className="text-[10px] font-black uppercase tracking-widest text-blue-400">Live Preview</h4>
+                              <div className={cn("h-1.5 w-1.5 rounded-full", isWorkspaceOnline ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-red-500 opacity-50")}></div>
+                            </div>
+                            <p className="text-[10px] text-slate-400 font-medium leading-relaxed">View the live execution output of your generated API.</p>
+                            <div className="grid grid-cols-1 gap-2">
+                              <a 
+                                href="http://localhost:8001/docs" 
+                                target="_blank" 
+                                className="flex items-center justify-center gap-2 py-3 bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all"
+                              >
+                                <Rocket size={14} /> Open Live API
+                              </a>
+                              <button 
+                                onClick={testWorkspace}
+                                className="flex items-center justify-center gap-2 py-3 bg-slate-900 border border-white/5 hover:border-white/10 text-slate-400 hover:text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all"
+                              >
+                                <Zap size={14} /> Run Test Fetch
+                              </button>
+                            </div>
+                            {workspaceOutput && (
+                              <div className="mt-4 p-4 bg-black/40 rounded-xl border border-white/5 font-mono text-[9px] text-blue-300 whitespace-pre-wrap animate-in fade-in slide-in-from-top-1">
+                                {workspaceOutput}
+                              </div>
+                            )}
+                          </div>
                         </div>
                         <div className="col-span-12 xl:col-span-9 bg-slate-950 rounded-[2rem] p-8 border border-slate-800 overflow-hidden flex flex-col min-h-[400px]">
                           <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-800/50">
@@ -425,6 +486,76 @@ export default function App() {
                             )}
                           </div>
                         </div>
+                      </div>
+                    )}
+
+                    {activeTab === 'preview' && (
+                      <div className="flex flex-col h-full space-y-4">
+                        <div className="flex items-center justify-between shrink-0">
+                           <div className="flex flex-col">
+                             <h2 className="text-xl font-black text-white uppercase tracking-tighter">Live Generated UI</h2>
+                             <p className="text-xs text-slate-500 font-medium">This is the actual code running from your workspace</p>
+                           </div>
+                           <div className="flex items-center gap-2">
+                             <div className="flex items-center gap-2 px-4 py-2 bg-slate-900/40 border border-white/5 rounded-xl">
+                                <div className={cn("h-1.5 w-1.5 rounded-full", isWorkspaceOnline ? "bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-red-500")}></div>
+                                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{isWorkspaceOnline ? 'Port 8001 Connected' : 'Port 8001 Offline'}</span>
+                             </div>
+                             <a 
+                               href="http://localhost:8001/" 
+                               target="_blank" 
+                               rel="noopener noreferrer"
+                               className="flex items-center gap-2 px-4 py-2 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 rounded-xl text-[10px] font-black uppercase tracking-widest text-blue-400 transition-colors"
+                             >
+                                <Rocket size={12} /> Open Full Screen
+                             </a>
+                           </div>
+                        </div>
+
+                        {!isWorkspaceOnline ? (
+                          <div className="flex-1 flex flex-col items-center justify-center bg-[#0a1019]/60 backdrop-blur-xl border border-white/10 rounded-[2rem] shadow-2xl p-12 text-center">
+                             <div className="h-20 w-20 rounded-3xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-500 mb-6">
+                                <AlertCircle size={40} />
+                             </div>
+                             <h3 className="text-2xl font-black text-white uppercase tracking-tighter mb-2">Workspace Offline</h3>
+                             <p className="text-slate-500 font-medium max-w-md">The preview could not connect to your workspace server. Ensure your backend is running on port 8001.</p>
+                          </div>
+                        ) : (
+                          <div className="flex-1 bg-white rounded-[2rem] overflow-hidden border border-white/10 shadow-2xl relative group">
+                            {/* Browser title bar mock */}
+                            <div className="h-10 bg-slate-100 flex items-center px-4 gap-2 border-b border-slate-200">
+                               <div className="flex gap-1.5">
+                                 <div className="h-3 w-3 rounded-full bg-rose-400"></div>
+                                 <div className="h-3 w-3 rounded-full bg-amber-400"></div>
+                                 <div className="h-3 w-3 rounded-full bg-emerald-400"></div>
+                               </div>
+                               <div className="flex-1 flex justify-center">
+                                  <div className="bg-slate-200/60 rounded-md px-6 py-1 text-[10px] font-medium tracking-wide text-slate-500 font-mono">
+                                    http://localhost:8001/
+                                  </div>
+                               </div>
+                            </div>
+                            
+                            {/* Actual Iframe pointing to the generated HTML page / React App */}
+                            <iframe 
+                              src="http://localhost:8001/" 
+                              className="w-full h-[calc(100%-2.5rem)] border-none"
+                              title="Live Workspace Preview"
+                            />
+                            
+                            {/* Refresh Overlay Button */}
+                            <button 
+                               onClick={() => {
+                                 const iframe = document.querySelector('iframe');
+                                 if(iframe) iframe.src = iframe.src;
+                               }}
+                               className="absolute bottom-6 right-6 h-12 w-12 bg-slate-900 border border-white/10 text-white rounded-2xl flex items-center justify-center shadow-xl hover:scale-105 active:scale-95 transition-all opacity-0 group-hover:opacity-100"
+                               title="Force Reload iFrame"
+                            >
+                               <Zap size={20} />
+                            </button>
+                          </div>
+                        )}
                       </div>
                     )}
 

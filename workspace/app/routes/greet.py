@@ -1,7 +1,11 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
+import json
 
-greet_router = APIRouter()
+router = APIRouter()
 
-@greet_router.get("/hello")
-async def greet():
-    return {"message": "Hello, World!"}
+@router.post("/chennai")
+async def handle_chennai_button_click():
+    if request.json()["btn"] == "chennai":
+        return {"text": "Hello Chennai"}
+    else:
+        raise HTTPException(status_code=404, detail="Button not found")

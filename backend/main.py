@@ -233,10 +233,21 @@ async def developer(state: AgentState):
     Tasks: {json.dumps(state['tasks'])}
     Requirements: {state['project_requirements']}
     
-    GOAL: Design a clean, modular FastAPI project structure. 
-    1. Determine the filenames needed (e.g., main.py, app/routes/greet.py).
+    GOAL: Design a clean, modular project structure using the BEST technology stack that matches the requirements.
+    
+    TECHNOLOGY DETECTION RULES:
+    - If the requirements mention "React", "Vue", "Angular", "frontend", "UI", "component", "form", "page", "website", or "web app":
+      Generate frontend files (e.g., index.html, App.jsx, App.css, components/ContactForm.jsx, etc.).
+    - If the requirements mention "API", "backend", "server", "endpoint", "database", "REST":
+      Generate backend files (e.g., main.py with FastAPI, or server.js with Express).
+    - If the requirements mention both frontend AND backend, generate a full-stack structure.
+    - If unclear, default to a simple HTML/CSS/JS frontend.
+    
+    STRUCTURE RULES:
+    1. Determine ALL filenames needed for the project.
     2. Assign each individual Task (by ID) to exactly ONE file to prevent duplication.
-    3. Ensure 'main.py' is the entry point that initializes the app and includes routers.
+    3. Ensure there is a clear entry point file (e.g., index.html for frontend, main.py for Python backend, server.js for Node backend).
+    4. For React projects: generate standalone .jsx/.js files with inline or separate .css. Use CDN scripts (React, ReactDOM, Babel) in index.html so no build step is needed.
     """
     
     try:
@@ -261,7 +272,7 @@ async def developer(state: AgentState):
             qa_feedback = f"QA COMPLIANCE: {json.dumps(state['qa_report']['bugs'])}. FIX ONLY THE BUGS IN {fname}."
 
         file_prompt = f"""
-        Role: Senior Developer
+        Role: Senior Full-Stack Developer
         File: {fname}
         Module Goal: {assignment.description}
         Specific Tasks to Implement: {json.dumps(assigned_tasks)}
@@ -272,12 +283,20 @@ async def developer(state: AgentState):
         Current Codebase (for imports/signatures): {json.dumps({k: v[:500] for k, v in state['codebase'].items()})}
         {qa_feedback}
         
-        STRICT CODING STANDARDS:
-        1. ONLY implement the 'Specific Tasks' assigned to this file. 
-        2. DO NOT implement logic found in other tasks/files to avoid duplication.
-        3. Use 'APIRouter' for routes in sub-files. DO NOT create new FastAPI() instances.
-        4. If this is 'main.py', include the routers from other files.
-        5. Return ONLY raw source code. No introductory text. No markdown.
+        ⚠️ CRITICAL ABSOLUTE RULES — VIOLATION = FAILURE:
+        1. You MUST output ONLY the raw file content for '{fname}'. Nothing else.
+        2. DO NOT write any instructions, explanations, comments like "run npm install", "npx create-react-app", "pip install", terminal commands, or setup guides. These are FORBIDDEN.
+        3. DO NOT output markdown fences (```). Raw code ONLY.
+        4. If the file is 'index.html' and the project uses React: Use React + ReactDOM + Babel from CDN. Use <script type="text/babel"> for JSX. Write a COMPLETE self-contained page. NO build tools. NO npm. NO webpack.
+        5. ONLY implement the 'Specific Tasks' assigned to this file.
+        6. DO NOT implement logic found in other tasks/files.
+        
+        TECHNOLOGY-SPECIFIC RULES:
+        - For Python backend files (.py): Use FastAPI with APIRouter for sub-routes. DO NOT create new FastAPI() instances in sub-files. The entry point main.py should include routers.
+        - For React/JSX files (.jsx/.js): Write valid JSX. Functional components with hooks. Default export.
+        - For HTML files (.html): Write complete valid HTML5. Embed all CSS and JS inline OR use CDN only. The page MUST work when opened in a browser with zero setup.
+        - For CSS files (.css): Clean, modern CSS with responsive design.
+        - UI must be visually stunning: dark background, gradients, glassmorphism, smooth animations.
         """
         
         res = llm.invoke(file_prompt)
@@ -302,14 +321,16 @@ async def testing_agent(state: AgentState):
     
     llm = get_llm(state["provider"], state["model"]).with_structured_output(QAReport)
     prompt = f"""
-    You are a Strict Code Auditor. 
+    You are a Strict Code Auditor for any technology stack (Python, React, HTML, Node.js, etc.).
     Codebase: {json.dumps(state['codebase'])}
     
     CRITICAL AUDIT RULES:
-    1. DUPLICATION: Does the same path (e.g. /greet) exist in multiple files? If so, FAIL.
-    2. MODULARITY: Are sub-files using APIRouter? Does 'main.py' correctly include them?
-    3. STANDARDS: Is there any introductory text or markdown backticks in the code?
+    1. DUPLICATION: Does the same route/component/function exist in multiple files? If so, FAIL.
+    2. MODULARITY: Is the code properly organized? For Python: APIRouter in sub-files. For React: components properly exported/imported. For HTML: clean structure.
+    3. STANDARDS: Is there any introductory text or markdown backticks in the code? If so, FAIL.
     4. LOGIC: Does the code fulfill these requirements: {state['project_requirements']}?
+    5. COMPLETENESS: Are all required files present? Does the entry point (index.html / main.py / server.js) correctly reference other files?
+    6. UI QUALITY: If this is a frontend project, does the UI look professional with proper styling?
 
     Return a structured report.
     """
@@ -331,24 +352,19 @@ async def monitor_agent(state: AgentState):
     state["agent_statuses"]["Monitor"] = "working"
     await notify("Monitor", "Delivering to workspace...", state)
     
-    # Ensure we always write to the root workspace, not backend/workspace
     root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     workspace_dir = os.path.join(root_dir, "workspace")
     os.makedirs(workspace_dir, exist_ok=True)
+
+    # 1. Write the codebase to disk purely as intended by the Dev
     for fname, content in state["codebase"].items():
-        try:
-            # Ensure the content is a string before writing
-            if isinstance(content, str):
-                file_path = os.path.join(workspace_dir, fname)
-                os.makedirs(os.path.dirname(file_path), exist_ok=True)
-                with open(file_path, "w", encoding="utf-8") as f: f.write(content)
-            else:
-                await notify("Monitor", f"Warning: Content for {fname} was not a string, skipping file write.", state)
-        except Exception as e:
-            await notify("Monitor", f"Error writing file {fname}: {e}", state)
-            
+        if not isinstance(content, str): continue
+        file_path = os.path.join(workspace_dir, fname)
+        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+        with open(file_path, "w", encoding="utf-8") as f: f.write(content)
+
     state["agent_statuses"]["Monitor"] = "done"
-    await notify("Monitor", "Project delivered successfully.", state)
+    await notify("Monitor", "Project delivered successfully. Preview Live.", state)
     await persist_state(state)
     return state
 
@@ -439,4 +455,13 @@ def read_root(): return {"status": "online"}
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    import subprocess
+    import sys
+
+    # Auto-spawn the preview server in the background
+    print("[System] Spinning up Dynamic Preview Server on port 8001...")
+    preview_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "preview_server.py")
+    subprocess.Popen([sys.executable, preview_path])
+
+    # Run the main orchestrator agent API
+    uvicorn.run(app, host="127.0.0.1", port=8000)
