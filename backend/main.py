@@ -22,7 +22,8 @@ load_dotenv()
 app = FastAPI(title="Agentic AI: Professional Dashboard API")
 
 # --- MongoDB Setup ---
-MONGO_URI = os.getenv("MONGO_URI", "mongodb://127.0.0.1:27017")
+# MONGO_URI = os.getenv("MONGO_URI", "mongodb://127.0.0.1:27017")
+MONGO_URI = os.getenv("MONGO_URI", "mongodb+srv://Yenmin:Yenmin@cluster0.hajrqmm.mongodb.net/coding-agents-poc")
 # Use a short timeout so the app doesn't hang if MongoDB is offline
 client = AsyncIOMotorClient(MONGO_URI, serverSelectionTimeoutMS=2000)
 db = client["agentic_ai"]
@@ -147,7 +148,8 @@ def get_llm(provider: str, model_id: str):
         return ChatAnthropic(model=model_id, temperature=0)
     else: 
         # For Ollama, we ensure format="json" if using with_structured_output later
-        return ChatOllama(model=model_id, temperature=0, base_url="http://localhost:11434")
+        return ChatOllama(model=model_id, temperature=0, base_url="https://65phj7g7-11434.inc1.devtunnels.ms")
+        # return ChatOllama(model=model_id, temperature=0, base_url="http://localhost:11434")
 
 async def notify(agent: str, message: str, state: AgentState):
     log_entry = f"[{agent}] {message}"

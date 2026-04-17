@@ -23,7 +23,8 @@ def run_full_stack_test():
     initial_state = {
         "project_requirements": test_requirement,
         "provider": "ollama",
-        "model": "llama3",
+        "model": "qwen2.5-coder:14b",
+        # "model": "llama3",
         "sprints": [],
         "tasks": [],
         "codebase": {},
