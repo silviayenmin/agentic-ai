@@ -216,6 +216,30 @@ async def project_manager(state: AgentState):
     await persist_state(state)
     return state
 
+async def file_checker_agent(state: AgentState):
+    state["current_agent"] = "FileChecker"
+    state["agent_statuses"]["FileChecker"] = "working"
+    await notify("FileChecker", "Checking workspace for existing files...", state)
+    
+    root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    workspace_dir = os.path.join(root_dir, "workspace")
+    existing_files = []
+    
+    if os.path.exists(workspace_dir):
+        for root, dirs, files in os.walk(workspace_dir):
+            for f in files:
+                rel_path = os.path.relpath(os.path.join(root, f), workspace_dir)
+                existing_files.append(rel_path)
+                
+    if existing_files:
+        await notify("FileChecker", f"Found {len(existing_files)} existing files in workspace to handle safely.", state)
+    else:
+        await notify("FileChecker", "Workspace is clean. Proceeding safely.", state)
+        
+    state["agent_statuses"]["FileChecker"] = "done"
+    await persist_state(state)
+    return state
+
 async def developer(state: AgentState):
     state["current_agent"] = "Dev"
     state["agent_statuses"]["Dev"] = "working"
@@ -363,13 +387,15 @@ def should_continue(state: AgentState):
 workflow = StateGraph(AgentState)
 workflow.add_node("BA", business_analyst)
 workflow.add_node("PM", project_manager)
+workflow.add_node("FileChecker", file_checker_agent)
 workflow.add_node("Dev", developer)
 workflow.add_node("QA", testing_agent)
 workflow.add_node("Monitor", monitor_agent)
 
 workflow.set_entry_point("BA")
 workflow.add_edge("BA", "PM")
-workflow.add_edge("PM", "Dev")
+workflow.add_edge("PM", "FileChecker")
+workflow.add_edge("FileChecker", "Dev")
 workflow.add_edge("Dev", "QA")
 workflow.add_conditional_edges("QA", should_continue, {"Dev": "Dev", "Monitor": "Monitor"}) # Explicitly map
 workflow.add_edge("Monitor", END)
@@ -393,7 +419,7 @@ async def websocket_endpoint(websocket: WebSocket):
                     "provider": "ollama", "model": "llama3",
                     "sprints": [], "tasks": [], "codebase": {}, "qa_report": {},
                     "current_agent": "BA",
-                    "agent_statuses": {"BA": "idle", "PM": "idle", "Dev": "idle", "QA": "idle", "Monitor": "idle"},
+                    "agent_statuses": {"BA": "idle", "PM": "idle", "FileChecker": "idle", "Dev": "idle", "QA": "idle", "Monitor": "idle"},
                     "logs": [], "iteration_count": 0
                 }
                 # Initial persistence

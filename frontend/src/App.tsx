@@ -16,7 +16,8 @@ import {
   RocketIcon,
   Zap,
   CheckCircle,
-  Download
+  Download,
+  FileSearch
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sidebar } from './components/Sidebar';
@@ -70,7 +71,7 @@ export default function App() {
   const [requirements, setRequirements] = useState("");
   const [logs, setLogs] = useState<string[]>([]);
   const [state, setState] = useState<AgentState>({
-    agent_statuses: { BA: "idle", PM: "idle", Dev: "idle", QA: "idle", Monitor: "idle" },
+    agent_statuses: { BA: "idle", PM: "idle", FileChecker: "idle", Dev: "idle", QA: "idle", Monitor: "idle" },
     current_agent: "BA",
     sprints: [],
     tasks: [],
@@ -159,7 +160,7 @@ export default function App() {
   const handleNewProject = () => {
     if (isRunning) return;
     setState({
-      agent_statuses: { BA: "idle", PM: "idle", Dev: "idle", QA: "idle", Monitor: "idle" },
+      agent_statuses: { BA: "idle", PM: "idle", FileChecker: "idle", Dev: "idle", QA: "idle", Monitor: "idle" },
       current_agent: "BA",
       sprints: [],
       tasks: [],
@@ -177,7 +178,7 @@ export default function App() {
     if (ws && requirements && ws.readyState === WebSocket.OPEN && userId) {
       setLogs(["[System] Initializing Agent Ecosystem..."]);
       setState({
-        agent_statuses: { BA: "idle", PM: "idle", Dev: "idle", QA: "idle", Monitor: "idle" },
+        agent_statuses: { BA: "idle", PM: "idle", FileChecker: "idle", Dev: "idle", QA: "idle", Monitor: "idle" },
         current_agent: "BA",
         sprints: [],
         tasks: [],
@@ -252,9 +253,10 @@ export default function App() {
              </div>
 
              {/* Right: Agent Grid (Full Wide) */}
-             <div className="flex-1 h-full grid grid-cols-5 gap-4">
+             <div className="flex-1 h-full grid grid-cols-6 gap-4">
                 <AgentCard name="BA" role="Architect" status={state.agent_statuses.BA} isCurrent={state.current_agent === 'BA'} />
                 <AgentCard name="PM" role="Planner" status={state.agent_statuses.PM} isCurrent={state.current_agent === 'PM'} />
+                <AgentCard name="FileChecker" role="Checker" status={state.agent_statuses.FileChecker} isCurrent={state.current_agent === 'FileChecker'} />
                 <AgentCard name="Dev" role="Developer" status={state.agent_statuses.Dev} isCurrent={state.current_agent === 'Dev'} />
                 <AgentCard name="QA" role="Critic" status={state.agent_statuses.QA} isCurrent={state.current_agent === 'QA'} />
                 <AgentCard name="Monitor" role="Deployer" status={state.agent_statuses.Monitor} isCurrent={state.current_agent === 'Monitor'} />
@@ -505,6 +507,7 @@ const AgentCard = ({ name, role, status, isCurrent }: { name: string, role: stri
   const iconMap = {
     BA: Layout,
     PM: ClipboardList,
+    FileChecker: FileSearch,
     Dev: Code,
     QA: Bug,
     Monitor: HardDrive
