@@ -16,7 +16,7 @@ The Business Analyst agent is the initial point of contact for a new project. It
 ## Input Data
 -   `state["project_requirements"]` (string): The high-level description of the project provided by the user.
 -   `state["provider"]` (string): The chosen LLM provider (e.g., "ollama", "openai").
--   `state["model"]` (string): The specific LLM model ID (e.g., "llama3", "gpt-4o").
+-   `state["model"]` (string): The specific LLM model ID (e.g., "qwen2.5-coder:14b","gpt-4o").
 
 ## Output Data (Transfers to PM Agent)
 -   `state["sprints"]` (List[dict]): A list of dictionaries, where each dictionary represents a sprint with `id`, `title`, `goal`, and `features`.

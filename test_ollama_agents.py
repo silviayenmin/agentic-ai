@@ -16,7 +16,7 @@ async def test_run():
     initial_state = {
         "project_requirements": test_requirement,
         "provider": "ollama",
-        "model": "llama3",
+        "model": "qwen2.5-coder:14b",
         "sprints": [],
         "tasks": [],
         "codebase": {},

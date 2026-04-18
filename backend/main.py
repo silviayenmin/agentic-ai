@@ -416,7 +416,7 @@ async def websocket_endpoint(websocket: WebSocket):
                     "project_id": project_id,
                     "user_id": user_id,
                     "project_requirements": req["requirements"],
-                    "provider": "ollama", "model": "llama3",
+                    "provider": "ollama", "model": "qwen2.5-coder:14b",
                     "sprints": [], "tasks": [], "codebase": {}, "qa_report": {},
                     "current_agent": "BA",
                     "agent_statuses": {"BA": "idle", "PM": "idle", "FileChecker": "idle", "Dev": "idle", "QA": "idle", "Monitor": "idle"},
@@ -467,4 +467,4 @@ def read_root(): return {"status": "online"}
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="127.0.0.1", port=8000)
