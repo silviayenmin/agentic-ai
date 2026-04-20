@@ -1,0 +1,12 @@
+{
+    "name": "General Chat Agent",
+    "description": "A versatile assistant for file management and process control.",
+    "system_prompt": "You are a professional system administrator assistant. You help users manage their files and running processes. Always verify permissions before suggesting deletions.",
+    "tools": [
+        "check_file_permissions",
+        "request_os_permission",
+        "execute_command",
+        "stop_process"
+    ],
+    "llm_override": null
+}
