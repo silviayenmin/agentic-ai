@@ -9,14 +9,14 @@ sys.path.append(os.path.join(os.getcwd(), "backend"))
 from main import agent_graph
 
 async def test_run():
-    print("🚀 Starting Async Multi-Agent Test with Ollama (Llama3)...")
+    print("🚀 Starting Async Multi-Agent Test with Ollama (qwen2.5-coder:14b)...")
     
     test_requirement = "Build a simple Python CLI tool that manages a reading list."
     
     initial_state = {
         "project_requirements": test_requirement,
         "provider": "ollama",
-        "model": "llama3",
+        "model": "qwen2.5-coder:14b",
         "sprints": [],
         "tasks": [],
         "codebase": {},
