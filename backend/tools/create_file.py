@@ -41,8 +41,3 @@ def create_file_if_not_exists(file_path: str, content: str = "") -> str:
     except Exception as e:
         return f"Error: An unexpected error occurred: {str(e)}"
 
-if __name__ == "__main__":
-    # Quick internal test
-    test_file = "workspace/test_creation.txt"
-    print(create_file_if_not_exists(test_file, "This is a test file content."))
-    print(create_file_if_not_exists(test_file, "This should not overwrite."))
