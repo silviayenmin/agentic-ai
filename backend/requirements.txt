@@ -10,5 +10,6 @@ pydantic
 websockets
 python-multipart
 motor
+psutil
 # For Ollama support
 langchain-ollama
