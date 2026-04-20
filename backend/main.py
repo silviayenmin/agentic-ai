@@ -13,9 +13,10 @@ from fastapi import (
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from langgraph.graph import StateGraph, END
-from langchain_openai import ChatOpenAI
-from langchain_anthropic import ChatAnthropic
-from langchain_ollama import ChatOllama
+
+# from langchain_openai import ChatOpenAI
+# from langchain_anthropic import ChatAnthropic
+from langchain.llms import Ollama
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
 from dotenv import load_dotenv
@@ -161,14 +162,14 @@ async def persist_state(state: AgentState):
 
 # --- Helpers ---
 def get_llm(provider: str, model_id: str):
-    if provider == "openai":
-        return ChatOpenAI(model=model_id, temperature=0)
-    elif provider == "anthropic":
-        return ChatAnthropic(model=model_id, temperature=0)
-    else:
-        # For Ollama, we ensure format="json" if using with_structured_output later
-        return ChatOllama(model=model_id, temperature=0, base_url=LLM_URL)
-        # return ChatOllama(model=model_id, temperature=0, base_url="http://localhost:11434")
+    # if provider == "openai":
+    #     return ChatOpenAI(model=model_id, temperature=0)
+    # elif provider == "anthropic":
+    #     return ChatAnthropic(model=model_id, temperature=0)
+    # else:
+    # For Ollama, we ensure format="json" if using with_structured_output later
+    return Ollama(model=model_id, temperature=0, base_url=LLM_URL)
+    # return Ollama(model=model_id, temperature=0, base_url="http://localhost:11434")
 
 
 async def notify(agent: str, message: str, state: AgentState):

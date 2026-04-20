@@ -1,0 +1,31 @@
+{
+    "active_provider": "ollama_llama",
+    "providers": {
+        "ollama_llama": {
+            "provider_type": "ollama",
+            "model": "llama3.1:8b",
+            "base_url": "https://65phj7g7-11434.inc1.devtunnels.ms",
+            "temperature": 0
+        },
+        "ollama_qwen": {
+            "provider_type": "ollama",
+            "model": "qwen2.5-coder:14b",
+            "base_url": "https://65phj7g7-11434.inc1.devtunnels.ms",
+            "temperature": 0
+        },
+        "openai": {
+            "provider_type": "openai",
+            "model": "gpt-4o",
+            "temperature": 0
+        },
+        "anthropic": {
+            "provider_type": "anthropic",
+            "model": "claude-3-5-sonnet-20240620",
+            "temperature": 0
+        }
+    },
+    "memory": {
+        "type": "buffer",
+        "max_token_limit": 2000
+    }
+}
