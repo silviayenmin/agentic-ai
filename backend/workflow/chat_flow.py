@@ -33,6 +33,8 @@ if __name__ == "__main__":
     import asyncio
 
     app = build_chat_flow()
+    # with open("uigraph/chat_flow.png", "wb") as f:
+    #     f.write(app.get_graph().draw_mermaid_png())
     initial_state = {"input": "Hello, how are you?", "chat_history": []}
     result = app.invoke(initial_state)
     print(result)
