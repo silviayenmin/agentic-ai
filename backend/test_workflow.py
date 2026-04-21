@@ -9,26 +9,30 @@ if current_dir not in sys.path:
 
 from workflow.master_flow import build_master_workflow
 
+
 async def main():
     print("=" * 60)
     print("   Workflow Test Environment (Testing System)")
     print("=" * 60)
-    
+
     # Initialize the compiled graph
     try:
         app = build_master_workflow()
+        # with open("graph.png", "wb") as f:
+        #     f.write(app.get_graph().draw_mermaid_png())
+
         print("[System] Workflow graph compiled successfully.")
     except Exception as e:
         print(f"[Error] Failed to compile workflow: {e}")
         return
-    
+
     while True:
         user_input = input("\nTest Query: ")
         if user_input.lower() in ["exit", "quit"]:
             break
-            
+
         print(f"\n[Testing] Routing: {user_input}")
-        
+
         # Initialize state with the user input
         initial_state = {
             "input": user_input,
@@ -39,22 +43,23 @@ async def main():
             "output": "",
             "evaluation_feedback": "",
             "next_step": "",
-            "errors": []
+            "errors": [],
         }
-        
+
         try:
             # Run the graph
             result = app.invoke(initial_state)
-            
+
             print("\n" + "=" * 20 + " TEST RESULTS " + "=" * 20)
             print(f"Decision: {result.get('next_step')}")
             print(f"Output: {result.get('output')}")
-            if result.get('evaluation_feedback'):
+            if result.get("evaluation_feedback"):
                 print(f"Evaluator Feedback: {result.get('evaluation_feedback')}")
             print("=" * 54)
-            
+
         except Exception as e:
             print(f"\n[Test Error] An error occurred: {e}")
+
 
 if __name__ == "__main__":
     asyncio.run(main())
