@@ -1,5 +1,6 @@
 import os
 import sys
+from langchain_core.tools import tool
 
 def find_project_root():
     """
@@ -17,11 +18,11 @@ def find_project_root():
         current_dir = parent_dir
     return os.path.abspath(os.getcwd())
 
-def check_file_existence(target, search_folder='workspace'):
+@tool
+def check_file_exists(target: str, search_folder: str = 'workspace') -> bool:
     """
     Checks if a file exists in a specific folder.
     Supports both direct paths and recursive searching for filenames.
-    Defaults to searching in the 'workspace' directory.
     """
     # Normalize path separators
     target = target.replace('\\', '/')
@@ -53,23 +54,20 @@ def check_file_existence(target, search_folder='workspace'):
     return False
 
 if __name__ == "__main__":
+    # Keeping the original CLI functionality for backward compatibility
     search_folder = 'workspace'
     
-    # Check if filename is provided as a command line argument
     if len(sys.argv) > 1:
         filename = sys.argv[1]
-        # Check if an optional folder name is provided as a second argument
         if len(sys.argv) > 2:
             search_folder = sys.argv[2]
     else:
-        # Prompt user if no argument is provided
         filename = input("Enter the file name to check: ").strip()
         folder_input = input("Enter the folder to search in (press Enter for 'workspace'): ").strip()
         if folder_input:
             search_folder = folder_input
     
-    if filename and check_file_existence(filename, search_folder):
+    if filename and check_file_exists.run({"target": filename, "search_folder": search_folder}):
         print("found")
     else:
         print("notfound")
-

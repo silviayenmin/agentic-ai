@@ -1,10 +1,13 @@
 import os
+from langchain_core.tools import tool
 
 # project root → workspace
 BASE_DIR = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..", "..", "workspace")
 )
 
+
+@tool
 def write_to_file():
     try:
         file_name = input(" Enter file name (e.g., demo.txt): ").strip()
@@ -31,8 +34,8 @@ def write_to_file():
             file.write(content + "\n")
 
         print(f" Successfully written to '{full_path}'")
+        return f" Successfully written to '{full_path}'"
 
     except Exception as e:
         print(f" Error: {e}")
-
-write_to_file()
+        return f" Error: {e}"
