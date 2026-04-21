@@ -1,6 +1,15 @@
 import os
 import sys
+import json
+import asyncio
+from typing import Dict, Any, Optional
+from pydantic import BaseModel, Field
 from langchain_core.tools import tool
+
+class FileCheckerInput(BaseModel):
+    """Input schema for checking file existence."""
+    target: str = Field(..., description="The name or path of the file to check.")
+    search_folder: str = Field("workspace", description="The folder to search in.")
 
 def find_project_root():
     """
@@ -53,21 +62,32 @@ def check_file_exists(target: str, search_folder: str = 'workspace') -> bool:
                 
     return False
 
+@tool(args_schema=FileCheckerInput)
+async def check_file(target: str, search_folder: str = "workspace") -> str:
+    """
+    Checks if a file exists in a specific folder.
+    Supports both direct paths and recursive searching for filenames.
+    """
+    exists = check_file_existence(target, search_folder)
+    result = {
+        "target": target,
+        "search_folder": search_folder,
+        "exists": exists,
+        "status": "found" if exists else "notfound"
+    }
+    return json.dumps(result, indent=2)
+
 if __name__ == "__main__":
-    # Keeping the original CLI functionality for backward compatibility
-    search_folder = 'workspace'
-    
-    if len(sys.argv) > 1:
-        filename = sys.argv[1]
-        if len(sys.argv) > 2:
-            search_folder = sys.argv[2]
-    else:
-        filename = input("Enter the file name to check: ").strip()
-        folder_input = input("Enter the folder to search in (press Enter for 'workspace'): ").strip()
-        if folder_input:
-            search_folder = folder_input
-    
-    if filename and check_file_exists.run({"target": filename, "search_folder": search_folder}):
-        print("found")
-    else:
-        print("notfound")
+    # Local test loop
+    async def main():
+        if len(sys.argv) > 1:
+            target = sys.argv[1]
+            folder = sys.argv[2] if len(sys.argv) > 2 else "workspace"
+            print(await check_file.ainvoke({"target": target, "search_folder": folder}))
+        else:
+            target = input("Enter the file name to check: ").strip()
+            folder = input("Enter the folder to search in (press Enter for 'workspace'): ").strip() or "workspace"
+            if target:
+                print(await check_file.ainvoke({"target": target, "search_folder": folder}))
+
+    asyncio.run(main())
