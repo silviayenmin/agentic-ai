@@ -85,7 +85,8 @@ class BaseAgent:
                 "find_file": Tools.find_file,
                 "search_code": Tools.search_code,
                 "check_file_exists": Tools.check_file_exists,
-                "web_search": Tools.web_search_tool
+                "web_search": Tools.web_search_tool,
+                "create_file": Tools.create_file_tool,
             }
             return [available_tools[name] for name in tool_names if name in available_tools]
         except ImportError:
