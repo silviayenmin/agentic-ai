@@ -1,3 +1,4 @@
+import asyncio
 from langgraph.graph import StateGraph, END
 from workflow.state import AgentState
 from agents.master.agent import MasterAgent
@@ -9,9 +10,9 @@ chat_flow = build_chat_flow()
 coding_flow = build_coding_flow()
 
 
-def master_router(state: AgentState):
+async def master_router(state: AgentState):
     agent = MasterAgent()
-    decision = asyncio.run(agent.route_query(state["input"]))
+    decision = await agent.route_query(state["input"])
     return {"next_step": decision.get("category", "CHAT")}
 
 
@@ -40,8 +41,6 @@ def build_master_workflow():
 
 
 if __name__ == "__main__":
-    import asyncio
-
     app = build_master_workflow()
 
     # with open("uigraph/master_flow.png", "wb") as f:
@@ -49,5 +48,5 @@ if __name__ == "__main__":
 
     # Example test
     state = {"input": "Create a new file called demo.txt", "chat_history": []}
-    result = app.invoke(state)
+    result = asyncio.run(app.ainvoke(state))
     print("Final State:", result)

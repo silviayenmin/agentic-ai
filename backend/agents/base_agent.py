@@ -48,7 +48,8 @@ class BaseAgent:
             llm = ChatOllama(
                 model=config["model"],
                 base_url=config["base_url"],
-                temperature=config.get("temperature", 0)
+                temperature=config.get("temperature", 0),
+                headers={"X-Tunnel-Skip-Anti-Phishing-Page": "true"}
             )
         elif p_type == "openai":
             llm = ChatOpenAI(
