@@ -1,5 +1,6 @@
 import os
 import json
+import sys
 from typing import Dict, Any, List
 from langchain_ollama import ChatOllama
 from langchain_openai import ChatOpenAI
@@ -7,6 +8,7 @@ from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import SystemMessage
 from langchain_classic.memory import ConversationBufferMemory
 from dotenv import load_dotenv
+from logger import log
 
 load_dotenv()
 
@@ -33,7 +35,7 @@ class BaseAgent:
             return json.load(f)
 
     def _init_llm(self):
-        # 1. Determine which provider to use
+        # ... (unchanged)
         provider_name = self.agent_config.get("provider_override") or self.global_config.get("active_provider")
         providers = self.global_config.get("providers", {})
         
@@ -72,22 +74,68 @@ class BaseAgent:
             return llm.bind_tools(tools)
         return llm
 
+    async def invoke_llm(self, messages: List[Any], max_retries: int = 10, retry_count: int = 0) -> Any:
+        import asyncio
+        last_error = None
+        workflow_attempt = retry_count + 1
+
+        for attempt in range(1, max_retries + 1):
+            try:
+                log.llm_call(self.name, attempt, workflow_attempt)
+
+                response = await self.llm.ainvoke(messages)
+                log.llm_ok(self.name, workflow_attempt)
+
+                content = getattr(response, 'content', str(response))
+                tool_calls = getattr(response, 'tool_calls', [])
+                if tool_calls:
+                    log.step(self.name, f"LLM returned {len(tool_calls)} tool call(s): {[tc.get('name') for tc in tool_calls]}")
+                elif content:
+                    preview = content[:200].replace('\n', ' ')
+                    log.step(self.name, f"LLM text response: {preview}{'...' if len(content) > 200 else ''}")
+                else:
+                    log.warn(self.name, "LLM returned empty content and no tool calls")
+
+                return response
+            except Exception as e:
+                last_error = e
+                log.llm_fail(self.name, attempt, max_retries, e)
+                if attempt < max_retries:
+                    wait_time = attempt * 2
+                    log.llm_retry(self.name, wait_time)
+                    await asyncio.sleep(wait_time)
+
+        log.llm_exhausted(self.name, max_retries)
+        raise last_error
+
     def _load_tools(self, tool_names: List[str]):
         try:
             import Tools
             available_tools = {
                 "check_file_permissions": Tools.check_file_permissions,
-                "request_os_permission": Tools.request_os_permission,
-                "execute_command": Tools.execute_command,
-                "stop_process": Tools.stop_process,
-                "read_file": Tools.read_file_tool,
-                "write_file": Tools.write_to_file,
-                "find_file": Tools.find_file,
-                "search_code": Tools.search_code,
-                "check_file_exists": Tools.check_file_exists,
-                "web_search": Tools.web_search_tool,
-                "create_file": Tools.create_file_tool,
+                "request_os_permission":  Tools.request_os_permission,
+                "execute_command":        Tools.execute_command,
+                "stop_process":           Tools.stop_process,
+                "read_file":              Tools.read_file_tool,
+                "write_file":             Tools.write_to_file,
+                "find_file":              Tools.find_file,
+                "search_code":            Tools.search_code,
+                "check_file_exists":      Tools.check_file_exists,
+                "web_search":             Tools.web_search_tool,
+                "create_file":            Tools.create_file_tool,
             }
-            return [available_tools[name] for name in tool_names if name in available_tools]
-        except ImportError:
+            bound, skipped = [], []
+            for name in tool_names:
+                if name in available_tools:
+                    bound.append(available_tools[name])
+                else:
+                    skipped.append(name)
+
+            if bound:
+                log.step(self.name, f"Tools bound: {[t for t in tool_names if t in available_tools]}")
+            if skipped:
+                log.warn(self.name, f"Unknown tools skipped (not in registry): {skipped}")
+            return bound
+        except ImportError as e:
+            log.warn(self.name, f"Could not import Tools module: {e}")
             return []

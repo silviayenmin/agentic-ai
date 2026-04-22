@@ -24,7 +24,7 @@ class MasterAgent(BaseAgent):
         
         messages = [self.system_prompt] + history + [HumanMessage(content=f"{routing_instruction}\n\nQuery: {user_input}")]
 
-        response = await self.llm.ainvoke(messages)
+        response = await self.invoke_llm(messages)
         self.memory.save_context({"input": user_input}, {"output": response.content})
         
         try:

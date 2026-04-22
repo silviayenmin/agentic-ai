@@ -9,14 +9,18 @@ class PlannerAgent(BaseAgent):
         current_dir = os.path.dirname(os.path.abspath(__file__))
         super().__init__(agent_dir=current_dir)
 
-    async def plan(self, analysis_input: str) -> str:
+    async def plan(self, analysis_input: str, feedback: str = "", retry_count: int = 0) -> str:
         """
-        Takes the analysis from the Analyzer agent and splits it into tasks.
+        Takes the analysis and optional evaluator feedback to create or correct a plan.
         """
-        history = self.memory.load_memory_variables({})["chat_history"]
-        messages = [self.system_prompt] + history + [HumanMessage(content=analysis_input)]
+        prompt = analysis_input
+        if feedback:
+            prompt = f"### PREVIOUS EVALUATOR FEEDBACK:\n{feedback}\n\n### ORIGINAL ANALYSIS:\n{analysis_input}\n\nINSTRUCTION: The previous execution failed. Analyze the feedback above and provide a CORRECTED technical plan that resolves all issues."
 
-        response = await self.llm.ainvoke(messages)
+        history = self.memory.load_memory_variables({})["chat_history"]
+        messages = [self.system_prompt] + history + [HumanMessage(content=prompt)]
+
+        response = await self.invoke_llm(messages, retry_count=retry_count)
         self.memory.save_context({"input": analysis_input}, {"output": response.content})
         
         # New feature: Save the plan for the Executor

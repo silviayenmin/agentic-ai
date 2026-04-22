@@ -19,8 +19,11 @@ class AgentState(TypedDict):
     # Feedback from Evaluators
     evaluation_feedback: str
     
-    # Routing decision (e.g., "CHAT", "CODING", "FINISH")
+    # Routing decision (e.g., "CHAT", "CODING", "FINISH", "FAIL")
     next_step: str
+    
+    # Counter for workflow loops (Max 3)
+    retry_count: int
     
     # Error tracking for the fallback workflow
     errors: List[str]

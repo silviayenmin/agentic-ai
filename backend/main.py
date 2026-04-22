@@ -421,7 +421,7 @@ async def monitor_agent(state: AgentState):
 
 
 def should_continue(state: AgentState):
-    if state["qa_report"].get("status") == "PASSED" or state["iteration_count"] >= 2:
+    if state["qa_report"].get("status") == "PASSED" or state["iteration_count"] >= 10:
         return "Monitor"
     return "Dev"
 

@@ -21,13 +21,18 @@ class CreateFileInput(BaseModel):
     )
 
 
+import sys
+# Add parent directory to path to import config_loader
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from config_loader import get_workspace_dir
+
 async def create_file_if_not_exists(file_path: str, content: str = "") -> Dict[str, Any]:
     """
     Creates a new file if it does not already exist.
     Ensures safe execution without overwriting existing files.
     """
     try:
-        base_dir = Path("workspace").resolve()
+        base_dir = Path(get_workspace_dir()).resolve()
         # path = Path(file_path).resolve()
         path = (base_dir / file_path).resolve()
         
@@ -35,7 +40,7 @@ async def create_file_if_not_exists(file_path: str, content: str = "") -> Dict[s
             return {
                 "status": "error",
                 "file_path": file_path,
-                "error_message": "Invalid path: outside allowed workspace"
+                "error_message": "Invalid path: outside allowed output directory"
             }
 
         # Check if path exists
@@ -89,7 +94,7 @@ async def create_file_if_not_exists(file_path: str, content: str = "") -> Dict[s
 
 
 @tool(args_schema=CreateFileInput)
-async def create_file(file_path: str, content: str = "") -> Dict[str, Any]:
+async def create_file_tool(file_path: str, content: str = "") -> Dict[str, Any]:
     """
     Creates a file only if it does not already exist.
     Prevents overwriting and ensures safe file creation for agents.
@@ -107,7 +112,7 @@ if __name__ == "__main__":
 
         print(f"Testing create_file tool on: {test_file}")
 
-        res = await create_file.ainvoke({
+        res = await create_file_tool.ainvoke({
             "file_path": test_file,
             "content": "Hello from tool!"
         })

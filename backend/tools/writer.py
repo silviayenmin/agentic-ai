@@ -5,30 +5,32 @@ from langchain_core.tools import tool
 
 # Input schema
 class WriteFileInput(BaseModel):
-    file_name: str = Field(..., description="File name inside workspace (e.g., demo.txt)")
+    file_name: str = Field(..., description="File name inside the output directory (e.g., demo.txt)")
     content: str = Field(..., description="Content to write into the file")
     mode: str = Field("w", description="Write mode: always overwrite")
 
 
-# Base directory → workspace
-BASE_DIR = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "..", "..", "workspace")
-)
+import sys
+# Add parent directory to path to import config_loader
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from config_loader import get_workspace_dir
+
+# Base directory → from config
+BASE_DIR = get_workspace_dir()
 
 
 @tool(args_schema=WriteFileInput)
-def write_file_tool(file_name: str, content: str, mode: str = "w") -> str:
+def write_to_file(file_name: str, content: str, mode: str = "w") -> str:
     """
-    Writes content to a file inside the workspace directory.
+    Writes content to a file inside the configured output directory.
+    If the file or directory does not exist, it will be created.
     Default mode is overwrite.
     """
     try:
         full_path = os.path.join(BASE_DIR, file_name)
 
-        print(f"Checking path: {full_path}")
-
-        if not os.path.isfile(full_path):
-            return "File not found in workspace."
+        # Ensure directory exists
+        os.makedirs(os.path.dirname(full_path), exist_ok=True)
 
         # always overwrite
         with open(full_path, "w", encoding="utf-8") as file:
@@ -57,7 +59,7 @@ if __name__ == "__main__":
     content = "\n".join(lines)
 
     # no mode input — always overwrite
-    result = write_file_tool.invoke({
+    result = write_to_file.invoke({
         "file_name": file_name,
         "content": content
     })

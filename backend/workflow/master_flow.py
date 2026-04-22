@@ -9,10 +9,11 @@ chat_flow = build_chat_flow()
 coding_flow = build_coding_flow()
 
 
-def master_router(state: AgentState):
+async def master_router(state: AgentState):
     agent = MasterAgent()
-    decision = asyncio.run(agent.route_query(state["input"]))
-    return {"next_step": decision.get("category", "CHAT")}
+    decision = await agent.route_query(state["input"])
+    # Reset retry_count for each new master decision
+    return {"next_step": decision.get("category", "CHAT"), "retry_count": 0}
 
 
 def build_master_workflow():
@@ -47,7 +48,13 @@ if __name__ == "__main__":
     # with open("uigraph/master_flow.png", "wb") as f:
     #     f.write(app.get_graph().draw_mermaid_png())
 
+    message = input("Query : ")
+
     # Example test
-    state = {"input": "Create a new file called demo.txt", "chat_history": []}
-    result = app.invoke(state)
+    state = {
+        # "input": "Create a new file called manickam with hello world program in javascript",
+        "input": message,
+        "chat_history": [],
+    }
+    result = asyncio.run(app.ainvoke(state))
     print("Final State:", result)

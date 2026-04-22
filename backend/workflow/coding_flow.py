@@ -8,36 +8,55 @@ from agents.executor.agent import ExecutorAgent
 from agents.code_evaluator.agent import CodeEvaluatorAgent
 
 
-def analyzer_node(state: AgentState):
+async def analyzer_node(state: AgentState):
     agent = AnalyzerAgent()
-    res = asyncio.run(agent.analyze(state["input"]))
+    retry_count = state.get("retry_count", 0)
+    res = await agent.analyze(state["input"], retry_count=retry_count)
     return {"analysis": res}
 
 
-def dependency_node(state: AgentState):
+async def dependency_node(state: AgentState):
     agent = DependencyCheckerAgent()
-    res = asyncio.run(agent.check_dependencies(state["analysis"]))
+    retry_count = state.get("retry_count", 0)
+    res = await agent.check_dependencies(state["analysis"], retry_count=retry_count)
     return {"dependencies": res}
 
 
-def planner_node(state: AgentState):
+async def planner_node(state: AgentState):
     agent = PlannerAgent()
-    res = asyncio.run(agent.plan(state["analysis"]))
+    retry_count = state.get("retry_count", 0)
+    feedback = state.get("evaluation_feedback", "")
+    res = await agent.plan(state["analysis"], feedback=feedback, retry_count=retry_count)
     return {"plan": res}
 
 
-def executor_node(state: AgentState):
+async def executor_node(state: AgentState):
     agent = ExecutorAgent()
-    res = asyncio.run(agent.execute_task("Implement the plan", context=state["plan"]))
+    retry_count = state.get("retry_count", 0)
+    res = await agent.execute_task("Implement the plan", context=state["plan"], retry_count=retry_count)
     return {"output": res}
 
 
-def code_evaluator_node(state: AgentState):
+async def code_evaluator_node(state: AgentState):
     agent = CodeEvaluatorAgent()
-    res = asyncio.run(agent.evaluate_code(state["input"], state["output"]))
+    retry_count = state.get("retry_count", 0)
+    res = await agent.evaluate_code(state["input"], state["output"], retry_count=retry_count)
     # Check if the evaluation approves the code (Simple check for "APPROVED")
     is_valid = "APPROVED" in res.upper()
-    return {"evaluation_feedback": res, "next_step": "FINISH" if is_valid else "RETRY"}
+    
+    new_retry_count = retry_count
+    next_step = "FINISH" if is_valid else "RETRY"
+
+    if not is_valid:
+        new_retry_count += 1
+        if new_retry_count >= 10:
+            next_step = "FAIL"
+        
+    return {
+        "evaluation_feedback": res, 
+        "next_step": next_step,
+        "retry_count": new_retry_count
+    }
 
 
 def build_coding_flow():
@@ -59,7 +78,11 @@ def build_coding_flow():
     workflow.add_conditional_edges(
         "evaluator",
         lambda state: state["next_step"],
-        {"FINISH": END, "RETRY": "planner"},
+        {
+            "FINISH": END, 
+            "RETRY": "planner",
+            "FAIL": END
+        },
     )
 
     return workflow.compile()
@@ -78,7 +101,8 @@ if __name__ == "__main__":
         "output": "",
         "evaluation_feedback": "",
         "next_step": "",
+        "retry_count": 0,
         "errors": [],
     }
-    result = app.invoke(initial_state)
+    result = asyncio.run(app.ainvoke(initial_state))
     print("Standalone Coding Flow Test Result:", result)
