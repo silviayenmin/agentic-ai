@@ -7,9 +7,9 @@
 
 **Technical Constraints:**
 
-* The system is running on Windows (win32).
-* All file-related operations, analysis, and recommendations must strictly target the 'output/' directory.
-* Use Windows-compatible paths and logic throughout the process.
+- The system is running on Windows (win32).
+- All file-related operations, analysis, and recommendations must strictly target the 'output/' directory.
+- Use Windows-compatible paths and logic throughout the process.
 
 **Objectives:**
 
@@ -25,14 +25,14 @@
 **Actionable Steps:**
 
 1. **Verify Node.js and npm installation**:
-	* Check if Node.js is installed on the system by running `node -v` in the command prompt.
-	* Check if npm is installed by running `npm -v` in the command prompt.
+   - Check if Node.js is installed on the system by running `node -v` in the command prompt.
+   - Check if npm is installed by running `npm -v` in the command prompt.
 2. **Create a new ReactJS project using create-react-app**:
-	* Run `npx create-react-app manickam --template typescript` (if TypeScript support is required) or `npx create-react-app manickam` (for JavaScript) in the command prompt to create a new ReactJS project.
+   - Run `npx create-react-app manickam --template typescript` (if TypeScript support is required) or `npx create-react-app manickam` (for JavaScript) in the command prompt to create a new ReactJS project.
 3. **Change directory to the newly created project**:
-	* Navigate to the 'output/manickam' directory using the command prompt.
+   - Navigate to the 'output/manickam' directory using the command prompt.
 4. **Run the project**:
-	* Run `npm start` or `yarn start` (if yarn is used) in the command prompt to run the project.
+   - Run `npm start` or `yarn start` (if yarn is used) in the command prompt to run the project.
 
 **Recommendations:**
 

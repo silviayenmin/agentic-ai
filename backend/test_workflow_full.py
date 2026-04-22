@@ -39,7 +39,7 @@ async def run_test_simulation():
         
         try:
             # Invoking the graph just like main.py does via websocket tasks
-            result = app.invoke(state)
+            result = await app.ainvoke(state)
             
             print("\n" + "=" * 20 + " RESULTS " + "=" * 20)
             print(f"Workflow Decision: {result.get('next_step')}")
@@ -49,7 +49,9 @@ async def run_test_simulation():
             print("=" * 49)
             
         except Exception as e:
+            import traceback
             print(f"\n[CRITICAL ERROR] Pipeline crash: {e}")
+            traceback.print_exc()
 
 if __name__ == "__main__":
     asyncio.run(run_test_simulation())
