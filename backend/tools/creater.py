@@ -27,16 +27,16 @@ async def create_file_if_not_exists(file_path: str, content: str = "") -> Dict[s
     Ensures safe execution without overwriting existing files.
     """
     try:
-        # base_dir = Path("workspace").resolve()
-        path = Path(file_path).resolve()
-        # path = (base_dir / file_path).resolve()
+        base_dir = Path("workspace").resolve()
+        # path = Path(file_path).resolve()
+        path = (base_dir / file_path).resolve()
         
-        # if not str(path).startswith(str(base_dir)):
-        #     return {
-        #         "status": "error",
-        #         "file_path": file_path,
-        #         "error_message": "Invalid path: outside allowed workspace"
-        #     }
+        if not str(path).startswith(str(base_dir)):
+            return {
+                "status": "error",
+                "file_path": file_path,
+                "error_message": "Invalid path: outside allowed workspace"
+            }
 
         # Check if path exists
         if path.exists():
