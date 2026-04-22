@@ -1,5 +1,6 @@
 {
     "active_provider": "ollama_llama",
+    "workspace_dir": "output",
     "providers": {
         "ollama_llama": {
             "provider_type": "ollama",

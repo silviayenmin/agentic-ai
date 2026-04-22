@@ -1,16 +1,11 @@
-import math
+# Agentic AI Project
 
-def calculate_area(radius):
-    area = math.pi * (radius ** 2)
-    return area
+This project implements a multi-agent system using FastAPI and LangChain.
 
-def main():
-    radius = float(input("Enter the radius of the circle: "))
-    if radius < 0:
-        print("Invalid input. Radius cannot be negative.")
-    else:
-        calculated_area = calculate_area(radius)
-        print(f"The area of the circle is {calculated_area:.2f} square units.")
+## Components
+- **Backend**: FastAPI server with various agents (Master, Planner, Analyzer, Executor, etc.)
+- **Frontend**: React application for interacting with the agents.
+- **Workspace**: A dedicated directory for file operations and project artifacts.
 
-if __name__ == "__main__":
-    main()
+## Usage
+All agent operations are restricted to the `workspace/` directory and are OS-aware (Windows).

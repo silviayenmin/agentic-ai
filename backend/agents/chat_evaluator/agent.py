@@ -18,6 +18,6 @@ class ChatEvaluatorAgent(BaseAgent):
         history = self.memory.load_memory_variables({})["chat_history"]
         messages = [self.system_prompt] + history + [HumanMessage(content=evaluation_input)]
 
-        response = await self.llm.ainvoke(messages)
+        response = await self.invoke_llm(messages)
         self.memory.save_context({"input": evaluation_input}, {"output": response.content})
         return response.content

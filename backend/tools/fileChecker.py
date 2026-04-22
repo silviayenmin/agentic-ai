@@ -6,10 +6,16 @@ from typing import Dict, Any, Optional
 from pydantic import BaseModel, Field
 from langchain_core.tools import tool
 
+# Add parent directory to path to import config_loader
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from config_loader import get_workspace_name
+
+DEFAULT_WORKSPACE = get_workspace_name()
+
 class FileCheckerInput(BaseModel):
     """Input schema for checking file existence."""
     target: str = Field(..., description="The name or path of the file to check.")
-    search_folder: str = Field("workspace", description="The folder to search in.")
+    search_folder: str = Field(DEFAULT_WORKSPACE, description="The folder to search in.")
 
 def find_project_root():
     """
@@ -28,7 +34,7 @@ def find_project_root():
     return os.path.abspath(os.getcwd())
 
 @tool
-def check_file_exists(target: str, search_folder: str = 'workspace') -> bool:
+def check_file_exists(target: str, search_folder: str = DEFAULT_WORKSPACE) -> bool:
     """
     Checks if a file exists in a specific folder.
     Supports both direct paths and recursive searching for filenames.
@@ -63,12 +69,12 @@ def check_file_exists(target: str, search_folder: str = 'workspace') -> bool:
     return False
 
 @tool(args_schema=FileCheckerInput)
-async def check_file(target: str, search_folder: str = "workspace") -> str:
+async def check_file(target: str, search_folder: str = DEFAULT_WORKSPACE) -> str:
     """
     Checks if a file exists in a specific folder.
     Supports both direct paths and recursive searching for filenames.
     """
-    exists = check_file_existence(target, search_folder)
+    exists = check_file_exists(target, search_folder)
     result = {
         "target": target,
         "search_folder": search_folder,
@@ -82,11 +88,11 @@ if __name__ == "__main__":
     async def main():
         if len(sys.argv) > 1:
             target = sys.argv[1]
-            folder = sys.argv[2] if len(sys.argv) > 2 else "workspace"
+            folder = sys.argv[2] if len(sys.argv) > 2 else DEFAULT_WORKSPACE
             print(await check_file.ainvoke({"target": target, "search_folder": folder}))
         else:
             target = input("Enter the file name to check: ").strip()
-            folder = input("Enter the folder to search in (press Enter for 'workspace'): ").strip() or "workspace"
+            folder = input(f"Enter the folder to search in (press Enter for '{DEFAULT_WORKSPACE}'): ").strip() or DEFAULT_WORKSPACE
             if target:
                 print(await check_file.ainvoke({"target": target, "search_folder": folder}))
 

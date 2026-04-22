@@ -54,16 +54,15 @@ async def read_file_content(file_path: str) -> Dict[str, Any]:
  
  
 @tool(args_schema=ReaderInput)
-async def read_file(file_path: str) -> str:
+async def read_file_tool(file_path: str) -> str:
     """
     Reads a file from the local filesystem and returns its content.
     Useful for agents to understand file contents or configurations.
     """
     result = await read_file_content(file_path)
-    # return json.dumps(result, indent=2)
     return result
- 
- 
+
+
 if __name__ == "__main__":
     # Local test
     async def test():
@@ -72,13 +71,12 @@ if __name__ == "__main__":
             test_file = os.path.abspath(sys.argv[1])
         else:
             test_file = os.path.abspath(__file__)
-            
+
         print(f"Testing read_file tool on: {test_file}")
-       
-        res = await read_file.ainvoke({
+
+        res = await read_file_tool.ainvoke({
             "file_path": test_file
         })
-       
         print("\nTool Output:")
         print(res)
  

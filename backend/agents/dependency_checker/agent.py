@@ -9,14 +9,14 @@ class DependencyCheckerAgent(BaseAgent):
         current_dir = os.path.dirname(os.path.abspath(__file__))
         super().__init__(agent_dir=current_dir)
 
-    async def check_dependencies(self, query: str) -> str:
+    async def check_dependencies(self, query: str, retry_count: int = 0) -> str:
         """
         Analyzes dependencies and saves the report to .agent_context/dependencies.md.
         """
         history = self.memory.load_memory_variables({})["chat_history"]
         messages = [self.system_prompt] + history + [HumanMessage(content=query)]
 
-        response = await self.llm.ainvoke(messages)
+        response = await self.invoke_llm(messages, retry_count=retry_count)
         self.memory.save_context({"input": query}, {"output": response.content})
         
         # New feature: Save dependency report
