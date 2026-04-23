@@ -81,14 +81,15 @@ class BaseAgent:
                 "request_os_permission": Tools.request_os_permission,
                 "execute_command": Tools.execute_command,
                 "stop_process": Tools.stop_process,
-                "read_file": Tools.read_file_tool,
-                "write_file": Tools.write_to_file,
+                "read_file": Tools.read_file,
+                "write_file": Tools.write_file_tool,
                 "find_file": Tools.find_file,
                 "search_code": Tools.search_code,
                 "check_file_exists": Tools.check_file_exists,
                 "web_search": Tools.web_search_tool,
-                "create_file": Tools.create_file_tool,
+                "create_file": Tools.create_file,
             }
             return [available_tools[name] for name in tool_names if name in available_tools]
-        except ImportError:
+        except ImportError as e:
+            print(f"[BaseAgent] Error loading tools: {e}")
             return []

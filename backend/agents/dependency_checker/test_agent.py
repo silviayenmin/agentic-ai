@@ -21,7 +21,11 @@ async def run_test():
 
     print("=" * 50)
     print(f"Agent '{agent.name}' is ready!")
-    print(f"Using Provider: {agent.global_config['active_provider']}")
+    
+    # Show actual provider being used
+    provider = agent.agent_config.get("provider_override") or agent.global_config.get("active_provider")
+    model = agent.global_config["providers"][provider]["model"]
+    print(f"Using Provider: {provider} ({model})")
     print("Type 'exit' or 'quit' to stop.")
     print("=" * 50)
 
