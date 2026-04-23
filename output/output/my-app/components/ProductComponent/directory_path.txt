@@ -1,0 +1,1 @@
+Updated directory path: output/my-app/components/ProductComponent
