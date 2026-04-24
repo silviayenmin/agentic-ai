@@ -32,8 +32,50 @@ class CodeEvaluatorAgent(BaseAgent):
             log.step(self.name, f"Evaluation round {round_num}/{MAX_TOOL_ROUNDS}")
             response = await self.invoke_llm(messages, retry_count=retry_count)
 
-            # Plain text verdict — we're done
-            if response.content and response.content.strip():
+            # 1. Formal tool calls — execute and feed results back
+            if hasattr(response, "tool_calls") and response.tool_calls:
+                from langchain_core.messages import ToolMessage
+                log.step(self.name, f"Executing {len(response.tool_calls)} evaluator tool call(s)")
+                messages.append(response)
+                for tc in response.tool_calls:
+                    result = await self.run_tool(tc.get("name", ""), tc.get("args", {}))
+                    messages.append(
+                        ToolMessage(content=str(result), tool_call_id=tc["id"])
+                    )
+                continue
+
+            # 2. Tool calls embedded as JSON in text response (Fallback)
+            elif response.content:
+                content_text = response.content.strip()
+                import re
+                import json
+                # Look for ```json ... ``` or a raw JSON object
+                json_matches = re.findall(r"```json\n(.*?)\n```", content_text, re.DOTALL)
+                if not json_matches:
+                    json_matches = re.findall(r"\{.*\"name\":.*\}", content_text, re.DOTALL)
+
+                if json_matches:
+                    log.step(self.name, f"Found {len(json_matches)} JSON block(s) in text response")
+                    processed_any = False
+                    for json_str in json_matches:
+                        try:
+                            tool_data = json.loads(json_str)
+                            calls = tool_data if isinstance(tool_data, list) else [tool_data]
+                            for tc in calls:
+                                import uuid
+                                call_id = f"json_{uuid.uuid4().hex[:8]}"
+                                result = await self.run_tool(tc["name"], tc["arguments"])
+                                messages.append(response) # Add the assistant message
+                                from langchain_core.messages import ToolMessage
+                                messages.append(ToolMessage(content=str(result), tool_call_id=call_id))
+                                processed_any = True
+                        except json.JSONDecodeError:
+                            continue
+                    
+                    if processed_any:
+                        continue # Go to next round after processing JSON tools
+
+                # 3. Plain text verdict (only if no tool calls found above)
                 verdict = response.content.strip()
                 is_approved = "APPROVED" in verdict.upper()
                 if is_approved:
@@ -45,21 +87,6 @@ class CodeEvaluatorAgent(BaseAgent):
                 )
                 return verdict
 
-            # Formal tool calls — execute and feed results back
-            if hasattr(response, "tool_calls") and response.tool_calls:
-                from langchain_core.messages import ToolMessage
-                log.step(self.name, f"Executing {len(response.tool_calls)} evaluator tool call(s)")
-                messages.append(response)
-
-                for tc in response.tool_calls:
-                    result = await self._execute_tool(
-                        tc.get("name", ""), tc.get("args", {})
-                    )
-                    messages.append(
-                        ToolMessage(content=str(result), tool_call_id=tc["id"])
-                    )
-                continue
-
             log.warn(self.name, f"Round {round_num}: no content and no tool calls — breaking loop")
             break
 
@@ -68,29 +95,3 @@ class CodeEvaluatorAgent(BaseAgent):
         self.memory.save_context({"input": evaluation_input}, {"output": fallback})
         return fallback
 
-    async def _execute_tool(self, tool_name: str, tool_args: dict) -> str:
-        """Executes a single bound tool and returns its result as a string."""
-        import Tools
-        from langchain_core.tools import BaseTool
-
-        # Resolve short aliases used in config.json → real exported names
-        _ALIASES = {
-            "read_file": "read_file_tool",
-            "write_file": "write_to_file",
-            "create_file": "create_file_tool",
-        }
-        resolved = _ALIASES.get(tool_name, tool_name)
-
-        if not hasattr(Tools, resolved):
-            return f"Tool '{tool_name}' not found."
-
-        tool_obj = getattr(Tools, resolved)
-        try:
-            if isinstance(tool_obj, BaseTool):
-                return str(await tool_obj.ainvoke(tool_args))
-            elif asyncio.iscoroutinefunction(tool_obj):
-                return str(await tool_obj(**tool_args))
-            else:
-                return str(tool_obj(**tool_args))
-        except Exception as e:
-            return f"Tool error ({tool_name}): {e}"

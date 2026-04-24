@@ -7,6 +7,9 @@ from .search_tool import find_file, search_code
 from .fileChecker import check_file_exists
 from .web_search import web_search_tool
 from .creater import create_file_tool
+from .list_dir import list_directory_tool
+from .delete_file import delete_file_tool
+from .task_manager import update_task_status, get_task_list
 __all__ = [
     "check_file_permissions",
     "request_os_permission",
@@ -19,4 +22,8 @@ __all__ = [
     "check_file_exists",
     "web_search_tool",
     "create_file_tool",
+    "list_directory_tool",
+    "delete_file_tool",
+    "update_task_status",
+    "get_task_list",
 ]

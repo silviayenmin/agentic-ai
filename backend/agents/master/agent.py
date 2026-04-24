@@ -28,8 +28,20 @@ class MasterAgent(BaseAgent):
         self.memory.save_context({"input": user_input}, {"output": response.content})
         
         try:
-            # Clean response in case the LLM adds markdown triple backticks
-            clean_content = response.content.strip().replace("```json", "").replace("```", "")
-            return json.loads(clean_content)
-        except json.JSONDecodeError:
-            return {"category": "UNKNOWN", "content": response.content}
+            # Clean response in case the LLM adds markdown triple backticks or conversational filler
+            content = response.content.strip()
+            if "```json" in content:
+                content = content.split("```json")[1].split("```")[0].strip()
+            elif "```" in content:
+                content = content.split("```")[1].split("```")[0].strip()
+            
+            # If it's still not valid JSON, try to find the first '{' and last '}'
+            if not (content.startswith("{") and content.endswith("}")):
+                start = content.find("{")
+                end = content.rfind("}")
+                if start != -1 and end != -1:
+                    content = content[start:end+1]
+
+            return json.loads(content)
+        except (json.JSONDecodeError, ValueError):
+            return {"category": "UNKNOWN", "reason": "Failed to parse LLM response as JSON"}

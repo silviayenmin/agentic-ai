@@ -16,7 +16,20 @@ class BaseAgent:
     def __init__(self, agent_dir: str, global_config_path: str = "config.json"):
         self.agent_dir = agent_dir
         self.global_config = self._load_json(global_config_path)
-        self.agent_config = self._load_json(os.path.join(agent_dir, "config.json"))
+        # Load system prompt
+        with open(os.path.join(agent_dir, "config.json"), "r") as f:
+            config = json.load(f)
+            
+        base_prompt = config["system_prompt"]
+        
+        # DYNAMIC CONTEXT INJECTION
+        import sys
+        from config_loader import get_workspace_dir
+        
+        env_context = f"\n\n[ENVIRONMENT CONTEXT]\n- Operating System: {sys.platform}\n- Workspace Root: {get_workspace_dir()}\n- All tools are configured to operate relative to this root. Do NOT use absolute paths."
+        
+        self.system_prompt = SystemMessage(content=base_prompt + env_context)
+        self.agent_config = config
         
         self.name = self.agent_config.get("name", "Unknown Agent")
         self.description = self.agent_config.get("description", "")
@@ -27,6 +40,13 @@ class BaseAgent:
             return_messages=True
         )
         self.system_prompt = SystemMessage(content=self.agent_config.get("system_prompt", ""))
+
+    def set_chat_history(self, history: List[str]):
+        """Injects external history strings into the agent's memory."""
+        self.memory.clear()
+        for msg in history:
+            # We treat previous agent outputs as AI messages to provide context
+            self.memory.chat_memory.add_ai_message(msg)
 
     def _load_json(self, path: str) -> Dict[str, Any]:
         if not os.path.exists(path):
@@ -123,6 +143,10 @@ class BaseAgent:
                 "check_file_exists":      Tools.check_file_exists,
                 "web_search":             Tools.web_search_tool,
                 "create_file":            Tools.create_file_tool,
+                "list_directory":         Tools.list_directory_tool,
+                "delete_file":            Tools.delete_file_tool,
+                "update_task_status":     Tools.update_task_status,
+                "get_task_list":          Tools.get_task_list,
             }
             bound, skipped = [], []
             for name in tool_names:
@@ -139,3 +163,58 @@ class BaseAgent:
         except ImportError as e:
             log.warn(self.name, f"Could not import Tools module: {e}")
             return []
+
+    # Normalize argument keys that LLMs commonly get wrong.
+    _ARG_ALIASES: Dict[str, Dict[str, str]] = {
+        "write_to_file":    {"file_path": "file_name", "filename": "file_name"},
+        "create_file_tool": {"file_name": "file_path", "filename": "file_path"},
+    }
+
+    async def run_tool(self, tool_name: str, tool_args: Dict[str, Any]) -> str:
+        """Universal tool execution with centralized logging."""
+        import Tools
+        from langchain_core.tools import BaseTool
+        from config_loader import get_workspace_dir
+        import asyncio
+
+        if not hasattr(Tools, tool_name):
+            log.tool_fail(tool_name, f"Tool not found in registry")
+            return f"Error: Tool '{tool_name}' not found."
+
+        tool_obj = getattr(Tools, tool_name)
+        
+        try:
+            # 1. Normalize arguments
+            final_args = tool_args.get("arguments", tool_args)
+            aliases = self._ARG_ALIASES.get(tool_name, {})
+            final_args = {aliases.get(k, k): v for k, v in final_args.items()}
+
+            # Specialized logic for read_file_tool (relative paths)
+            if tool_name == "read_file_tool":
+                raw = final_args.get("file_path") or final_args.pop("file_name", None)
+                if raw and not os.path.isabs(raw):
+                    raw = os.path.join(get_workspace_dir(), raw)
+                final_args["file_path"] = raw
+
+            # 2. Log the call
+            log.tool_call(tool_name, final_args)
+
+            # 3. Execute
+            if isinstance(tool_obj, BaseTool):
+                result = await tool_obj.ainvoke(final_args)
+            elif asyncio.iscoroutinefunction(tool_obj):
+                result = await tool_obj(**final_args)
+            else:
+                result = tool_obj(**final_args)
+
+            # 4. Log and return result
+            res_str = str(result)
+            log.tool_result(tool_name, res_str)
+            log.tool_ok(tool_name, res_str[:100])
+            
+            return res_str
+
+        except Exception as e:
+            import traceback
+            log.tool_fail(tool_name, str(e), exc=e)
+            return f"Error executing tool '{tool_name}': {str(e)}\n{traceback.format_exc()}"
