@@ -3,18 +3,24 @@ from langgraph.graph import StateGraph, END
 from workflow.state import AgentState
 from agents.chat.agent import ChatAgent
 from agents.chat_evaluator.agent import ChatEvaluatorAgent
+from logger import log
 
 
 async def chat_node(state: AgentState):
+    log.info("ChatFlow", "Entering Chat node")
     agent = ChatAgent()
+    agent.set_chat_history(state.get("chat_history", []))
     response = await agent.chat(state["input"])
-    return {"output": response}
+    return {"output": response, "chat_history": [f"ChatAgent: {response}"]}
 
 
 async def chat_evaluator_node(state: AgentState):
+    log.info("ChatFlow", "Entering Chat Evaluator node")
     evaluator = ChatEvaluatorAgent()
+    evaluator.set_chat_history(state.get("chat_history", []))
     feedback = await evaluator.evaluate(state["input"], state["output"])
-    return {"evaluation_feedback": feedback}
+    log.agent_ok("ChatFlow", "Evaluation complete")
+    return {"evaluation_feedback": feedback, "chat_history": [f"ChatEvaluator: {feedback}"]}
 
 
 def build_chat_flow():

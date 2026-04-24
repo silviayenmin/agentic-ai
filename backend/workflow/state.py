@@ -6,7 +6,7 @@ class AgentState(TypedDict):
     input: str
     
     # Conversation history
-    chat_history: List[str]
+    chat_history: Annotated[List[str], operator.add]
     
     # Internal notes passed between agents
     analysis: str
@@ -26,4 +26,4 @@ class AgentState(TypedDict):
     retry_count: int
     
     # Error tracking for the fallback workflow
-    errors: List[str]
+    errors: Annotated[List[str], operator.add]

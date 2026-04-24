@@ -1,25 +1,8 @@
-# Dependencies
-node_modules/
-
-# Python
+output/
+.agent_context/
 __pycache__/
 *.pyc
-*.pyo
 .env
 venv/
-
-# Build output
-dist/
-build/
-
-# IDE
-.vscode/
-.idea/
-
-# OS files
+node_modules/
 .DS_Store
-Thumbs.db
-
-# Lock files
-package-lock.json
-

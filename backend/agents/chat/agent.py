@@ -14,8 +14,21 @@ class ChatAgent(BaseAgent):
         messages = [self.system_prompt] + history + [HumanMessage(content=user_input)]
 
         response = await self.invoke_llm(messages)
-        self.memory.save_context({"input": user_input}, {"output": response.content})
-        return response.content
+        
+        final_output = ""
+        # 1. Formal tool_calls from LLM
+        if hasattr(response, 'tool_calls') and response.tool_calls:
+            for tc in response.tool_calls:
+                tc = tc if isinstance(tc, dict) else tc.dict()
+                tool_result = await self.run_tool(tc.get("name", ""), tc.get("args", {}))
+                final_output += f"\n[Tool Result: {tc.get('name')}]\n{tool_result}"
+        
+        # 2. Text response
+        if response.content:
+            final_output = response.content + ("\n" + final_output if final_output else "")
+
+        self.memory.save_context({"input": user_input}, {"output": final_output})
+        return final_output
 
 
 # if __name__ == "__main__":

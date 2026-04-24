@@ -15,16 +15,25 @@ Usage:
     log.info("MasterAgent", "Routing → CODING")
 """
 
+import sys
 import traceback
 from datetime import datetime
 
+# Windows terminal emoji support
+if sys.platform == "win32":
+    try:
+        import sys
+        sys.stdout.reconfigure(encoding='utf-8')
+    except (AttributeError, Exception):
+        pass
 
 def _ts() -> str:
     return datetime.now().strftime("%H:%M:%S")
 
-
 def _fmt(icon: str, tag: str, name: str, msg: str) -> str:
-    return f"{icon}  [{_ts()}] [{tag}] {name} — {msg}"
+    # Use a safe return that handles potential encoding issues if reconfigure failed
+    line = f"{icon}  [{_ts()}] [{tag}] {name} — {msg}"
+    return line
 
 
 class _Logger:
@@ -52,6 +61,19 @@ class _Logger:
 
     def tool_call(self, tool_name: str, args: dict):
         print(_fmt("🔧", "TOOL ", tool_name, f"Invoking with args: {args}"))
+
+    def tool_result(self, tool_name: str, result: str):
+        # Print tool output in a readable indented block
+        lines = result.strip().splitlines()
+        if len(lines) > 20:
+            content = "\n".join(lines[:10]) + f"\n... ({len(lines)-20} more lines) ...\n" + "\n".join(lines[-10:])
+        else:
+            content = "\n".join(lines)
+            
+        indented = "   │ " + "\n   │ ".join(content.splitlines())
+        print(f"   ┌── [RESULT: {tool_name}] ──────────────────")
+        print(indented)
+        print("   └────────────────────────────────────────────")
 
     # ── Agents ────────────────────────────────────────────────────
     def agent_start(self, agent_name: str, task: str = ""):

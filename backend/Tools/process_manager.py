@@ -13,8 +13,8 @@ active_processes: Dict[int, subprocess.Popen] = {}
 
 class RunCommandInput(BaseModel):
     command: str = Field(..., description="The command to run (e.g., 'npm start', 'npm run dev', 'python main.py')")
-    path: str = Field(..., description="The directory path where the command should be executed.")
-    is_background: bool = Field(True, description="Whether to run as a background process (standard for servers).")
+    path: Optional[str] = Field(None, description="The directory path where the command should be executed. Defaults to workspace root.")
+    is_background: bool = Field(False, description="Whether to run as a background process. Use True ONLY for long-running servers like 'npm start'.")
 
 class StopProcessInput(BaseModel):
     pid: Optional[int] = Field(None, description="The Process ID to terminate.")
@@ -33,9 +33,26 @@ def execute_command(command: str, path: str, is_background: bool = True) -> str:
     Executes a shell command in a specific directory. 
     Ideal for starting servers (npm start) or running scripts.
     """
-    abs_path = os.path.abspath(path)
+    from config_loader import get_workspace_dir
+    workspace_root = get_workspace_dir()
+    
+    # If path is provided, resolve it relative to workspace_root
+    if path:
+        if os.path.isabs(path):
+            abs_path = path
+        else:
+            abs_path = os.path.join(workspace_root, path)
+    else:
+        abs_path = workspace_root
+        
+    abs_path = os.path.normpath(abs_path)
+    
     if not os.path.exists(abs_path):
-        return json.dumps({"error": f"Path not found: {abs_path}"})
+        # Create directory if it doesn't exist to prevent 'Path not found' errors
+        try:
+            os.makedirs(abs_path, exist_ok=True)
+        except Exception:
+            return json.dumps({"error": f"Path not found and could not be created: {abs_path}"})
 
     try:
         if is_background:
