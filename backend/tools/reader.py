@@ -60,8 +60,10 @@ async def read_file(file_path: str) -> str:
     Useful for agents to understand file contents or configurations.
     """
     result = await read_file_content(file_path)
-    # return json.dumps(result, indent=2)
-    return result
+    if result["status"] == "success":
+        return result["content"]
+    else:
+        return f"Error reading file: {result['error_message']}"
  
  
 if __name__ == "__main__":

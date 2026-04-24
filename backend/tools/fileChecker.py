@@ -28,17 +28,17 @@ def find_project_root():
     return os.path.abspath(os.getcwd())
 
 @tool
-def check_file_exists(target: str, search_folder: str = 'workspace') -> bool:
+def check_file_exists(target: str, search_folder: str = 'workspace') -> str:
     """
     Checks if a file exists in a specific folder.
-    Supports both direct paths and recursive searching for filenames.
+    Returns a descriptive string with the file path if found.
     """
     # Normalize path separators
     target = target.replace('\\', '/')
     
     # Check if it's a direct path starting from current directory
     if os.path.isfile(target):
-        return True
+        return f"SUCCESS: File found at direct path: {target}"
     
     # Check if target is just a filename or a partial path
     target_basename = os.path.basename(target)
@@ -58,9 +58,9 @@ def check_file_exists(target: str, search_folder: str = 'workspace') -> bool:
                 current_full_path = os.path.join(root, file).replace('\\', '/')
                 # Check if it matches the target path provided (case-insensitive)
                 if current_full_path.lower().endswith(target.lower()):
-                    return True
+                    return f"SUCCESS: File '{target}' found at '{current_full_path}'"
                 
-    return False
+    return f"ERROR: File '{target}' not found in '{search_folder}'"
 
 @tool(args_schema=FileCheckerInput)
 async def check_file(target: str, search_folder: str = "workspace") -> str:

@@ -28,12 +28,17 @@ class DependencyCheckerAgent(BaseAgent):
         # Add a strict instruction to use tools first
         strict_query = (
             f"QUERY: {query}\n\n"
-            "INSTRUCTION: Search the codebase FIRST. If you need to search, use: Action: tool_name({\"arg\": \"val\"})"
+            "INSTRUCTION: \n"
+            "1. Search the codebase FIRST using tools.\n"
+            "2. If a search yields no results, try alternative keywords or related technology terms.\n"
+            "3. DO NOT give up after one failed search. Check at least 2-3 different patterns if necessary.\n"
+            "4. Finally, provide a detailed report. Use: Action: tool_name({\"arg\": \"val\"})"
         )
         
         messages = [self.system_prompt] + history + [HumanMessage(content=strict_query)]
 
         final_response = ""
+        last_tool_call = None
         # Tool calling loop (ReAct pattern)
         for i in range(30):  # Increased limit for deep analysis
             print(f"\n[DependencyChecker] Iteration {i+1}...", flush=True)
@@ -48,13 +53,24 @@ class DependencyCheckerAgent(BaseAgent):
             # 2. Check for Text-style tool calls (Action: tool_name({...}))
             action_match = re.search(r"Action:\s*(\w+)\s*\((.*)\)", content, re.DOTALL)
             
+            # --- Loop Detection ---
+            current_call = (tool_calls[0]["name"], tool_calls[0]["args"]) if tool_calls else (action_match.group(1), action_match.group(2)) if action_match else None
+            if current_call and current_call == last_tool_call:
+                print("[DependencyChecker] Loop detected (same tool/args), forcing summary.", flush=True)
+                messages.append(HumanMessage(content="STRICT INSTRUCTION: You are repeating yourself. STOP calling tools immediately. Based on the tool results you ALREADY have, provide the final structured report now. DO NOT include any more 'Action:' or tool calls."))
+                response = await self.llm.ainvoke(messages)
+                # Clean up the response to remove any lingering Action lines if the AI was stubborn
+                final_response = re.sub(r"Action:\s*\w+\(.*\)", "", response.content, flags=re.DOTALL).strip()
+                break
+            last_tool_call = current_call
+
             if not tool_calls and not action_match:
                 # If the last response was too short or looks like a polite brush-off,
                 # force one more call to get a real report.
-                is_polite_brush_off = any(phrase in content.lower() for phrase in ["thank you", "feel free to ask", "assistance with this project"])
-                if len(content) < 250 or is_polite_brush_off:
-                    print("[DependencyChecker] Response looks like a brush-off, forcing a summary...", flush=True)
-                    messages.append(HumanMessage(content="You have not provided the actual details I asked for. Based on the tool results above, provide the final detailed report now. DO NOT say 'thank you' or 'feel free to ask', just give the report."))
+                is_polite_brush_off = any(phrase in content.lower() for phrase in ["thank you", "feel free to ask", "assistance with this project", "i couldn't find", "as an ai"])
+                if len(content) < 300 or is_polite_brush_off:
+                    print("[DependencyChecker] Response looks like a brush-off or incomplete, forcing a detailed report...", flush=True)
+                    messages.append(HumanMessage(content="You have not provided a complete technical report. Based on the tools available and your findings, provide a FINAL structured report now. Mention specific files found or explicitly list what was searched and found missing. DO NOT be polite, just be technical."))
                     response = await self.llm.ainvoke(messages)
                     final_response = response.content
                 else:
