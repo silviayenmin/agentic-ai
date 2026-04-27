@@ -52,18 +52,7 @@ class DependencyCheckerAgent(BaseAgent):
            
             # 2. Check for Text-style tool calls (Action: tool_name({...}))
             action_match = re.search(r"Action:\s*(\w+)\s*\((.*)\)", content, re.DOTALL)
-           
-            # --- Loop Detection ---
-            current_call = (tool_calls[0]["name"], tool_calls[0]["args"]) if tool_calls else (action_match.group(1), action_match.group(2)) if action_match else None
-            if current_call and current_call == last_tool_call:
-                print("[DependencyChecker] Loop detected (same tool/args), forcing summary.", flush=True)
-                messages.append(HumanMessage(content="STRICT INSTRUCTION: You are repeating yourself. STOP calling tools immediately. Based on the tool results you ALREADY have, provide the final structured report now. DO NOT include any more 'Action:' or tool calls."))
-                response = await self.llm.ainvoke(messages)
-                # Clean up the response to remove any lingering Action lines if the AI was stubborn
-                final_response = re.sub(r"Action:\s*\w+\(.*\)", "", response.content, flags=re.DOTALL).strip()
-                break
-            last_tool_call = current_call
- 
+            
             if not tool_calls and not action_match:
                 # If the last response was too short or looks like a polite brush-off,
                 # force one more call to get a real report.
@@ -90,13 +79,20 @@ class DependencyCheckerAgent(BaseAgent):
                 tool_name = action_match.group(1)
                 tool_args_str = action_match.group(2).strip()
                 try:
-                    # Clean up JSON if LLM added single quotes or other mess
-                    tool_args_str = tool_args_str.replace("'", "\"")
-                    tool_args = json.loads(tool_args_str)
+                    import ast
+                    # Try json.loads first
+                    try:
+                        tool_args = json.loads(tool_args_str)
+                    except json.JSONDecodeError:
+                        # Fallback to ast.literal_eval which handles Python dict strings better
+                        tool_args = ast.literal_eval(tool_args_str)
+                        
                     print(f"[DependencyChecker] Text Tool Call: {tool_name} with args: {tool_args}", flush=True)
                     await self._run_tool(tool_name, tool_args, f"text_{i}", messages)
                 except Exception as e:
-                    messages.append(HumanMessage(content=f"Error parsing tool arguments: {e}"))
+                    error_msg = f"Error parsing tool arguments: {e}. Given string: {tool_args_str}"
+                    print(f"[DependencyChecker] {error_msg}", flush=True)
+                    messages.append(HumanMessage(content=error_msg))
  
         self.memory.save_context({"input": query}, {"output": final_response})
        
