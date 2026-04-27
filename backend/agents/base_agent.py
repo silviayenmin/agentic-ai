@@ -75,23 +75,34 @@ class BaseAgent:
  
     def _load_tools(self, tool_names: List[str]):
         try:
-            import Tools
+            import importlib
+            Tools = None
+            for mod in ("tools", "backend.tools"):
+                try:
+                    Tools = importlib.import_module(mod)
+                    break
+                except ImportError:
+                    continue
+
+            if Tools is None:
+                return []
+
             available_tools = {
-                "check_file_permissions": Tools.check_file_permissions,
-                "request_os_permission": Tools.request_os_permission,
-                "execute_command": Tools.execute_command,
-                "stop_process": Tools.stop_process,
-                "read_file": Tools.read_file,
-                "write_file": Tools.write_to_file,
-                "find_file": Tools.find_file,
-                "search_code": Tools.search_code,
-                "check_file_exists": Tools.check_file_exists,
-                "web_search": Tools.web_search_tool,
-                "create_file": Tools.create_file_tool,
+                "check_file_permissions": getattr(Tools, "check_file_permissions", None),
+                "request_os_permission": getattr(Tools, "request_os_permission", None),
+                "execute_command": getattr(Tools, "execute_command", None),
+                "stop_process": getattr(Tools, "stop_process", None),
+                "read_file": getattr(Tools, "read_file_tool", None),
+                "write_file": getattr(Tools, "write_to_file", None),
+                "find_file": getattr(Tools, "find_file", None),
+                "search_code": getattr(Tools, "search_code", None),
+                "check_file_exists": getattr(Tools, "check_file_exists", None),
+                "web_search": getattr(Tools, "web_search_tool", None),
+                "create_file": getattr(Tools, "create_file_tool", None),
             }
-            return [available_tools[name] for name in tool_names if name in available_tools]
-        except ImportError as e:
-            print(f"[BaseAgent] Error loading tools: {e}")
+
+            return [available_tools[name] for name in tool_names if name in available_tools and available_tools[name] is not None]
+        except Exception:
             return []
  
  
