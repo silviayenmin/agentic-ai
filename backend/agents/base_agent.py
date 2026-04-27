@@ -48,8 +48,7 @@ class BaseAgent:
             llm = ChatOllama(
                 model=config["model"],
                 base_url=config["base_url"],
-                temperature=config.get("temperature", 0),
-                headers={"X-Tunnel-Skip-Anti-Phishing-Page": "true"}
+                temperature=config.get("temperature", 0)
             )
         elif p_type == "openai":
             llm = ChatOpenAI(
@@ -90,8 +89,7 @@ class BaseAgent:
                 "create_file": Tools.create_file,
             }
             return [available_tools[name] for name in tool_names if name in available_tools]
-        except ImportError as e:
-            print(f"[BaseAgent] Error loading tools: {e}")
+        except ImportError:
             return []
  
  
