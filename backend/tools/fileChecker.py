@@ -27,11 +27,9 @@ def find_project_root():
         current_dir = parent_dir
     return os.path.abspath(os.getcwd())
 
-@tool
-def check_file_exists(target: str, search_folder: str = 'workspace') -> str:
+def _check_file_logic(target: str, search_folder: str = 'workspace') -> str:
     """
-    Checks if a file exists in a specific folder.
-    Returns a descriptive string with the file path if found.
+    Internal logic for checking if a file exists.
     """
     # Normalize path separators
     target = target.replace('\\', '/')
@@ -62,13 +60,23 @@ def check_file_exists(target: str, search_folder: str = 'workspace') -> str:
                 
     return f"ERROR: File '{target}' not found in '{search_folder}'"
 
+@tool
+def check_file_exists(target: str, search_folder: str = 'workspace') -> str:
+    """
+    Checks if a file exists in a specific folder.
+    Returns a descriptive string with the file path if found.
+    """
+    return _check_file_logic(target, search_folder)
+
 @tool(args_schema=FileCheckerInput)
 async def check_file(target: str, search_folder: str = "workspace") -> str:
     """
     Checks if a file exists in a specific folder.
     Supports both direct paths and recursive searching for filenames.
     """
-    exists = check_file_existence(target, search_folder)
+    # Check if file exists using the helper function
+    result_str = _check_file_logic(target, search_folder)
+    exists = "SUCCESS" in result_str
     result = {
         "target": target,
         "search_folder": search_folder,
