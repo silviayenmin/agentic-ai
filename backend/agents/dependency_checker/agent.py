@@ -30,8 +30,8 @@ class DependencyCheckerAgent(BaseAgent):
             f"QUERY: {query}\n\n"
             "INSTRUCTION: \n"
             "1. Search the codebase FIRST using tools.\n"
-            "2. If a search yields no results, try alternative keywords or related technology terms.\n"
-            "3. DO NOT give up after one failed search. Check at least 2-3 different patterns if necessary.\n"
+            "2. If a search yields no results, try 2-3 alternative keywords or related terms.\n"
+            "3. If after 3-5 different search patterns you still find NO evidence, STOP and provide a report stating it is missing. DO NOT keep guessing filenames indefinitely.\n"
             "4. Finally, provide a detailed report. Use: Action: tool_name({\"arg\": \"val\"})"
         )
         
@@ -81,18 +81,19 @@ class DependencyCheckerAgent(BaseAgent):
             # Process API Tool Calls
             for tool_call in tool_calls:
                 tool_name = tool_call["name"].split(".")[-1]
-                print(f"[DependencyChecker] API Tool Call: {tool_name}", flush=True)
-                await self._run_tool(tool_name, tool_call["args"], tool_call["id"], messages)
+                tool_args = tool_call["args"]
+                print(f"[DependencyChecker] API Tool Call: {tool_name} with args: {tool_args}", flush=True)
+                await self._run_tool(tool_name, tool_args, tool_call["id"], messages)
 
             # Process Text Tool Calls
             if action_match:
                 tool_name = action_match.group(1)
                 tool_args_str = action_match.group(2).strip()
-                print(f"[DependencyChecker] Text Tool Call: {tool_name}", flush=True)
                 try:
                     # Clean up JSON if LLM added single quotes or other mess
                     tool_args_str = tool_args_str.replace("'", "\"")
                     tool_args = json.loads(tool_args_str)
+                    print(f"[DependencyChecker] Text Tool Call: {tool_name} with args: {tool_args}", flush=True)
                     await self._run_tool(tool_name, tool_args, f"text_{i}", messages)
                 except Exception as e:
                     messages.append(HumanMessage(content=f"Error parsing tool arguments: {e}"))
