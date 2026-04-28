@@ -130,30 +130,26 @@ class BaseAgent:
 
     def _load_tools(self, tool_names: List[str]):
         try:
-            import importlib
-            Tools = None
-            for mod in ("tools", "backend.tools"):
-                try:
-                    Tools = importlib.import_module(mod)
-                    break
-                except ImportError:
-                    continue
-
-            if Tools is None:
-                return []
-
+            import tools as Tools
             available_tools = {
                 "check_file_permissions": getattr(Tools, "check_file_permissions", None),
                 "request_os_permission": getattr(Tools, "request_os_permission", None),
                 "execute_command": getattr(Tools, "execute_command", None),
                 "stop_process": getattr(Tools, "stop_process", None),
                 "read_file": getattr(Tools, "read_file_tool", None),
+                "read_file_tool": getattr(Tools, "read_file_tool", None),
                 "write_file": getattr(Tools, "write_to_file", None),
+                "write_to_file": getattr(Tools, "write_to_file", None),
                 "find_file": getattr(Tools, "find_file", None),
                 "search_code": getattr(Tools, "search_code", None),
                 "check_file_exists": getattr(Tools, "check_file_exists", None),
                 "web_search": getattr(Tools, "web_search_tool", None),
                 "create_file": getattr(Tools, "create_file_tool", None),
+                "create_file_tool": getattr(Tools, "create_file_tool", None),
+                "list_directory": getattr(Tools, "list_directory_tool", None),
+                "delete_file": getattr(Tools, "delete_file_tool", None),
+                "update_task_status": getattr(Tools, "update_task_status", None),
+                "get_task_list": getattr(Tools, "get_task_list", None),
             }
 
             return [available_tools[name] for name in tool_names if name in available_tools and available_tools[name] is not None]
@@ -168,7 +164,7 @@ class BaseAgent:
 
     async def run_tool(self, tool_name: str, tool_args: Dict[str, Any]) -> str:
         """Universal tool execution with centralized logging."""
-        import Tools
+        import tools as Tools
         from langchain_core.tools import BaseTool
         from config_loader import get_workspace_dir
         import asyncio
