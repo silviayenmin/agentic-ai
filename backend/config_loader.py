@@ -11,8 +11,8 @@ def load_global_config():
 def get_workspace_dir():
     config = load_global_config()
     workspace_name = config.get("workspace_dir", "workspace")
-    root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    return os.path.join(root_dir, workspace_name)
+    backend_dir = os.path.dirname(os.path.abspath(__file__))
+    return os.path.join(backend_dir, workspace_name)
 
 def get_workspace_name():
     config = load_global_config()
