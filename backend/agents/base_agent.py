@@ -75,34 +75,83 @@ class BaseAgent:
  
     def _load_tools(self, tool_names: List[str]):
         try:
-            import importlib
-            Tools = None
-            for mod in ("tools", "backend.tools"):
-                try:
-                    Tools = importlib.import_module(mod)
-                    break
-                except ImportError:
-                    continue
-
-            if Tools is None:
-                return []
-
+            import tools as Tools
             available_tools = {
                 "check_file_permissions": getattr(Tools, "check_file_permissions", None),
                 "request_os_permission": getattr(Tools, "request_os_permission", None),
                 "execute_command": getattr(Tools, "execute_command", None),
                 "stop_process": getattr(Tools, "stop_process", None),
                 "read_file": getattr(Tools, "read_file_tool", None),
+                "read_file_tool": getattr(Tools, "read_file_tool", None),
                 "write_file": getattr(Tools, "write_to_file", None),
+                "write_to_file": getattr(Tools, "write_to_file", None),
                 "find_file": getattr(Tools, "find_file", None),
                 "search_code": getattr(Tools, "search_code", None),
                 "check_file_exists": getattr(Tools, "check_file_exists", None),
                 "web_search": getattr(Tools, "web_search_tool", None),
                 "create_file": getattr(Tools, "create_file_tool", None),
+                "create_file_tool": getattr(Tools, "create_file_tool", None),
+                "list_directory": getattr(Tools, "list_directory_tool", None),
+                "delete_file": getattr(Tools, "delete_file_tool", None),
+                "update_task_status": getattr(Tools, "update_task_status", None),
+                "get_task_list": getattr(Tools, "get_task_list", None),
             }
 
             return [available_tools[name] for name in tool_names if name in available_tools and available_tools[name] is not None]
         except Exception:
             return []
- 
- 
+
+    # Normalize argument keys that LLMs commonly get wrong.
+    _ARG_ALIASES: Dict[str, Dict[str, str]] = {
+        "write_to_file":    {"file_path": "file_name", "filename": "file_name"},
+        "create_file_tool": {"file_name": "file_path", "filename": "file_path"},
+    }
+
+    async def run_tool(self, tool_name: str, tool_args: Dict[str, Any]) -> str:
+        """Universal tool execution with centralized logging."""
+        import tools as Tools
+        from langchain_core.tools import BaseTool
+        from config_loader import get_workspace_dir
+        import asyncio
+
+        if not hasattr(Tools, tool_name):
+            log.tool_fail(tool_name, f"Tool not found in registry")
+            return f"Error: Tool '{tool_name}' not found."
+
+        tool_obj = getattr(Tools, tool_name)
+        
+        try:
+            # 1. Normalize arguments
+            final_args = tool_args.get("arguments", tool_args)
+            aliases = self._ARG_ALIASES.get(tool_name, {})
+            final_args = {aliases.get(k, k): v for k, v in final_args.items()}
+
+            # Specialized logic for read_file_tool (relative paths)
+            if tool_name == "read_file_tool":
+                raw = final_args.get("file_path") or final_args.pop("file_name", None)
+                if raw and not os.path.isabs(raw):
+                    raw = os.path.join(get_workspace_dir(), raw)
+                final_args["file_path"] = raw
+
+            # 2. Log the call
+            log.tool_call(tool_name, final_args)
+
+            # 3. Execute
+            if isinstance(tool_obj, BaseTool):
+                result = await tool_obj.ainvoke(final_args)
+            elif asyncio.iscoroutinefunction(tool_obj):
+                result = await tool_obj(**final_args)
+            else:
+                result = tool_obj(**final_args)
+
+            # 4. Log and return result
+            res_str = str(result)
+            log.tool_result(tool_name, res_str)
+            log.tool_ok(tool_name, res_str[:100])
+            
+            return res_str
+
+        except Exception as e:
+            import traceback
+            log.tool_fail(tool_name, str(e), exc=e)
+            return f"Error executing tool '{tool_name}': {str(e)}\n{traceback.format_exc()}"
