@@ -7,6 +7,7 @@ from .search_tool import find_file, search_code
 from .fileChecker import check_file_exists
 from .web_search import web_search_tool
 from .creater import create_file_tool
+from .get_system_info import get_system_info
 __all__ = [
     "check_file_permissions",
     "request_os_permission",
@@ -19,6 +20,7 @@ __all__ = [
     "check_file_exists",
     "web_search_tool",
     "create_file_tool",
+    "get_system_info",
 ]
  
  
