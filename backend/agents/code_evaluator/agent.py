@@ -1,7 +1,8 @@
 import os
 import asyncio
+import uuid
 from agents.base_agent import BaseAgent
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import HumanMessage, ToolMessage
 from logger import log
 
 
@@ -34,7 +35,6 @@ class CodeEvaluatorAgent(BaseAgent):
 
             # 1. Formal tool calls — execute and feed results back
             if hasattr(response, "tool_calls") and response.tool_calls:
-                from langchain_core.messages import ToolMessage
                 log.step(self.name, f"Executing {len(response.tool_calls)} evaluator tool call(s)")
                 messages.append(response)
                 for tc in response.tool_calls:
@@ -47,30 +47,16 @@ class CodeEvaluatorAgent(BaseAgent):
             # 2. Tool calls embedded as JSON in text response (Fallback)
             elif response.content:
                 content_text = response.content.strip()
-                import re
-                import json
-                # Look for ```json ... ``` or a raw JSON object
-                json_matches = re.findall(r"```json\n(.*?)\n```", content_text, re.DOTALL)
-                if not json_matches:
-                    json_matches = re.findall(r"\{.*\"name\":.*\}", content_text, re.DOTALL)
-
-                if json_matches:
-                    log.step(self.name, f"Found {len(json_matches)} JSON block(s) in text response")
+                json_calls = self._extract_json_tool_calls(content_text)
+                if json_calls:
+                    log.step(self.name, f"Found {len(json_calls)} JSON tool call(s) in text response")
                     processed_any = False
-                    for json_str in json_matches:
-                        try:
-                            tool_data = json.loads(json_str)
-                            calls = tool_data if isinstance(tool_data, list) else [tool_data]
-                            for tc in calls:
-                                import uuid
-                                call_id = f"json_{uuid.uuid4().hex[:8]}"
-                                result = await self.run_tool(tc["name"], tc["arguments"])
-                                messages.append(response) # Add the assistant message
-                                from langchain_core.messages import ToolMessage
-                                messages.append(ToolMessage(content=str(result), tool_call_id=call_id))
-                                processed_any = True
-                        except json.JSONDecodeError:
-                            continue
+                    for tc in json_calls:
+                        call_id = f"json_{uuid.uuid4().hex[:8]}"
+                        result = await self.run_tool(tc["name"], tc["arguments"])
+                        messages.append(response) # Add the assistant message
+                        messages.append(ToolMessage(content=str(result), tool_call_id=call_id))
+                        processed_any = True
                     
                     if processed_any:
                         continue # Go to next round after processing JSON tools

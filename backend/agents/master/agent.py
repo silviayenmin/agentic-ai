@@ -42,6 +42,29 @@ class MasterAgent(BaseAgent):
                 if start != -1 and end != -1:
                     content = content[start:end+1]
 
-            return json.loads(content)
-        except (json.JSONDecodeError, ValueError):
-            return {"category": "UNKNOWN", "reason": "Failed to parse LLM response as JSON"}
+            decision = json.loads(content)
+            
+            # Ensure category is upper case and valid
+            cat = str(decision.get("category", "CHAT")).upper()
+            if cat not in ["CHAT", "CODING"]:
+                cat = "CHAT"
+            decision["category"] = cat
+            return decision
+
+        except (json.JSONDecodeError, ValueError, Exception):
+            # HEURISTIC FALLBACK: If parsing fails, check for technical keywords
+            technical_keywords = [
+                "create", "modify", "debug", "react", "component", "redux", 
+                "file", "folder", "npm", "install", "code", "function", "javascript"
+            ]
+            lower_input = user_input.lower()
+            if any(kw in lower_input for kw in technical_keywords):
+                return {
+                    "category": "CODING", 
+                    "reason": "Heuristic fallback: Technical keywords detected in query."
+                }
+            
+            return {
+                "category": "CHAT", 
+                "reason": "Defaulting to CHAT due to parsing failure and no clear technical keywords."
+            }

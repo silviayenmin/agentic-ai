@@ -9,6 +9,7 @@ from .web_search import web_search_tool
 from .creater import create_file_tool
 from .list_dir import list_directory_tool
 from .delete_file import delete_file_tool
+from .delete_directory import delete_directory_tool
 from .task_manager import update_task_status, get_task_list
 __all__ = [
     "check_file_permissions",
@@ -24,6 +25,7 @@ __all__ = [
     "create_file_tool",
     "list_directory_tool",
     "delete_file_tool",
+    "delete_directory_tool",
     "update_task_status",
     "get_task_list",
 ]

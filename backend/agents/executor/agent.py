@@ -56,23 +56,12 @@ class ExecutorAgent(BaseAgent):
         # 2. Tool calls embedded as JSON in text response
         elif response.content:
             content_text = response.content.strip()
-            json_matches = re.findall(r"```json\n(.*?)\n```", content_text, re.DOTALL)
-            if not json_matches:
-                json_matches = re.findall(r"\{.*\"name\":.*\}", content_text, re.DOTALL)
-
-            if json_matches:
-                log.step(self.name, f"Found {len(json_matches)} JSON block(s) in text response")
-                for json_str in json_matches:
-                    try:
-                        tool_data = json.loads(json_str)
-                        calls = tool_data if isinstance(tool_data, list) else [tool_data]
-                        for tc in calls:
-                            if isinstance(tc, dict) and "name" in tc and "arguments" in tc:
-                                tool_result = await self.run_tool(tc["name"], tc["arguments"])
-                                final_output += tool_result
-                    except json.JSONDecodeError as e:
-                        log.warn(self.name, f"Could not parse JSON tool call: {e}")
-                        continue
+            json_calls = self._extract_json_tool_calls(content_text)
+            if json_calls:
+                log.step(self.name, f"Found {len(json_calls)} JSON tool call(s) in text response")
+                for tc in json_calls:
+                    tool_result = await self.run_tool(tc["name"], tc["arguments"])
+                    final_output += tool_result
 
             if not final_output:
                 log.warn(self.name, "No tool calls found — returning raw LLM text as output")
