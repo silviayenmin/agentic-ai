@@ -1,28 +1,32 @@
 {
-    "active_provider": "openai",
+    "active_provider": "ollama_llama",
     "workspace_dir": "output",
     "providers": {
         "ollama_llama": {
             "provider_type": "ollama",
             "model": "llama3.1:8b",
             "base_url": "https://65phj7g7-11434.inc1.devtunnels.ms",
-            "temperature": 0
+            "temperature": 0,
+            "enable_reasoning": false
         },
         "ollama_qwen": {
             "provider_type": "ollama",
             "model": "qwen2.5-coder:14b",
             "base_url": "https://65phj7g7-11434.inc1.devtunnels.ms",
-            "temperature": 0
+            "temperature": 0,
+            "enable_reasoning": true
         },
         "openai": {
             "provider_type": "openai",
             "model": "gpt-4o-mini",
-            "temperature": 0
+            "temperature": 0,
+            "enable_reasoning": false
         },
         "anthropic": {
             "provider_type": "anthropic",
             "model": "claude-3-5-sonnet-20240620",
-            "temperature": 0
+            "temperature": 0,
+            "enable_reasoning": false
         }
     },
     "memory": {

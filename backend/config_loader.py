@@ -17,3 +17,27 @@ def get_workspace_dir():
 def get_workspace_name():
     config = load_global_config()
     return config.get("workspace_dir", "workspace")
+
+def sanitize_path(path: str) -> str:
+    """
+    Recursively strips the workspace directory name from the start of a path.
+    Handles 'output/output/src/App.js' -> 'src/App.js'
+    """
+    if not path:
+        return path
+    
+    workspace_name = get_workspace_name()
+    # Normalize separators
+    clean_path = path.replace("\\", "/").strip("/")
+    
+    # Loop to strip multiple layers if the agent is very confused
+    while True:
+        if clean_path.startswith(f"{workspace_name}/"):
+            clean_path = clean_path[len(workspace_name)+1:].strip("/")
+        elif clean_path == workspace_name:
+            clean_path = "."
+            break
+        else:
+            break
+            
+    return clean_path

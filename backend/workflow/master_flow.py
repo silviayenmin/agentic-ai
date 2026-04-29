@@ -82,32 +82,47 @@ if __name__ == "__main__":
     # with open("uigraph/master_flow.png", "wb") as f:
     #     f.write(app.get_graph().draw_mermaid_png())
 
-    message = input("Query : ")
+    chat_history = []
+    print("\n🚀 Agentic AI System Ready. Type 'exit' to quit.\n")
 
-    # Example test
-    state = {
-        "input": message,
-        "chat_history": [],
-    }
-    
-    result = asyncio.run(app.ainvoke(state))
-    
-    print("\n" + "="*60)
-    print("             AGENTIC WORKFLOW FINAL SUMMARY")
-    print("="*60)
-    
-    print(f"\n[FINAL OUTPUT]\n{result.get('output', 'No final output recorded.')}")
-    
-    if result.get("errors"):
-        print("\n[ERRORS ENCOUNTERED]")
-        for err in result["errors"]:
-            print(f"  ❌ {err}")
+    while True:
+        try:
+            message = input("Query : ")
+            if message.lower() in ["exit", "quit", "q"]:
+                print("👋 Goodbye!")
+                break
+            if not message.strip():
+                continue
+
+            state = {
+                "input": message,
+                "chat_history": chat_history,
+            }
             
-    print("\n[CHAT & LOG HISTORY]")
-    for entry in result.get('chat_history', []):
-        # Print first line or first 150 chars
-        summary = entry.split('\n')[0]
-        if len(summary) > 150: summary = summary[:147] + "..."
-        print(f"  • {summary}")
-        
-    print("\n" + "="*60)
+            result = asyncio.run(app.ainvoke(state))
+            chat_history = result.get("chat_history", chat_history)
+
+            print("\n" + "="*60)
+            print("             AGENTIC WORKFLOW FINAL SUMMARY")
+            print("="*60)
+            print(f"\n[FINAL OUTPUT]\n{result.get('output', 'No final output recorded.')}")
+            
+            if result.get("errors"):
+                print("\n[ERRORS ENCOUNTERED]")
+                for err in result["errors"]:
+                    print(f"  ❌ {err}")
+                    
+            print("\n[CHAT & LOG HISTORY]")
+            for entry in result.get('chat_history', []):
+                summary = entry.split('\n')[0]
+                if len(summary) > 150: summary = summary[:147] + "..."
+                print(f"  • {summary}")
+            print("\n" + "="*60 + "\n")
+
+        except KeyboardInterrupt:
+            print("\n👋 Stopped by user.")
+            break
+        except Exception as e:
+            print(f"❌ Error: {str(e)}")
+            import traceback
+            traceback.print_exc()

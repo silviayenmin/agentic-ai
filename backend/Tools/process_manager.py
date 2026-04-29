@@ -24,7 +24,7 @@ def get_process_info(proc: subprocess.Popen) -> Dict[str, Any]:
     return {
         "pid": proc.pid,
         "status": "running" if proc.poll() is None else "finished/error",
-        "return_code": proc.return_code
+        "return_code": proc.returncode
     }
 
 @tool(args_schema=RunCommandInput)
@@ -38,6 +38,8 @@ def execute_command(command: str, path: str, is_background: bool = True) -> str:
     
     # If path is provided, resolve it relative to workspace_root
     if path:
+        from config_loader import sanitize_path
+        path = sanitize_path(path)
         if os.path.isabs(path):
             abs_path = path
         else:
@@ -54,10 +56,17 @@ def execute_command(command: str, path: str, is_background: bool = True) -> str:
         except Exception:
             return json.dumps({"error": f"Path not found and could not be created: {abs_path}"})
 
+    # SMART SERVER DETECTION
+    # If the command looks like a server but is_background is False, auto-switch to True
+    server_keywords = ["npm start", "npm run dev", "npm run watch", "python main.py", "python app.py", "nodemon", "flask run"]
+    if not is_background and any(k in command.lower() for k in server_keywords):
+        from logger import log
+        log.warn("PROC_MGR", f"Detected server-like command '{command}'. Auto-switching to background mode to prevent blocking.")
+        is_background = True
+
     try:
         if is_background:
             # Start process in background
-            # shell=True is needed for 'npm' on Windows
             process = subprocess.Popen(
                 command,
                 cwd=abs_path,
@@ -71,26 +80,29 @@ def execute_command(command: str, path: str, is_background: bool = True) -> str:
             
             # Read a bit of output to see if it crashed immediately
             try:
-                # Use a small timeout to not block
-                stdout, stderr = process.communicate(timeout=2)
+                # Use a small timeout (0.5s) to not block the agent
+                stdout, stderr = process.communicate(timeout=0.5)
                 output = stdout + stderr
             except subprocess.TimeoutExpired:
-                output = "Process started and is running in background."
-
+                output = "Process is running in background. Logs will continue asynchronously."
+            
             return json.dumps({
-                "message": "Background process started.",
+                "status": "success",
+                "message": "Background process started successfully. You can now move to the next task.",
                 "process_info": get_process_info(process),
-                "initial_output": output[:500] # Return first 500 chars
+                "initial_output": output[:500]
             }, indent=2)
         else:
             # Run and wait for completion
-            result = subprocess.run(
-                command,
-                cwd=abs_path,
-                shell=True,
-                capture_output=True,
-                text=True
-            )
+            from logger import log
+            with log.timer(f"Executing: {command[:40]}..."):
+                result = subprocess.run(
+                    command,
+                    cwd=abs_path,
+                    shell=True,
+                    capture_output=True,
+                    text=True
+                )
             return json.dumps({
                 "status": "completed",
                 "stdout": result.stdout,

@@ -27,7 +27,9 @@ def write_to_file(file_name: str, content: str, mode: str = "w") -> str:
     Default mode is overwrite.
     """
     try:
-        full_path = os.path.join(BASE_DIR, file_name)
+        from config_loader import sanitize_path
+        clean_file_name = sanitize_path(file_name)
+        full_path = os.path.join(BASE_DIR, clean_file_name)
 
         # Ensure directory exists
         os.makedirs(os.path.dirname(full_path), exist_ok=True)

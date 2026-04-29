@@ -17,7 +17,10 @@ Usage:
 
 import sys
 import traceback
+import time
+import threading
 from datetime import datetime
+from contextlib import contextmanager
 
 # Windows terminal emoji support
 if sys.platform == "win32":
@@ -135,6 +138,45 @@ class _Logger:
 
     def persist(self, label: str, msg: str):
         print(_fmt("💾", "STORE", label, msg))
+
+    def verify(self, label: str, success: bool, msg: str):
+        icon = "✅" if success else "❌"
+        status = "PASSED" if success else "FAILED"
+        
+        # Define the box structure
+        header = f"   ┌── [VERIFICATION: {status}] {'─' * (30 - len(status))}"
+        indented_msg = f"   │ {icon} {label}: {msg}"
+        footer = f"   └{'─' * 44}"
+        
+        # Log to terminal
+        print(header)
+        print(indented_msg)
+        print(footer)
+
+    @contextmanager
+    def timer(self, label: str):
+        """A context manager that prints an inline duration timer."""
+        stop_event = threading.Event()
+        start_time = time.time()
+
+        def _timer_loop():
+            while not stop_event.is_set():
+                elapsed = int(time.time() - start_time)
+                # Inline update using \r
+                sys.stdout.write(f"\r⏳ [{_ts()}] [TIMER] {label} — Running for {elapsed}s...")
+                sys.stdout.flush()
+                time.sleep(1)
+
+        t = threading.Thread(target=_timer_loop, daemon=True)
+        t.start()
+        try:
+            yield
+        finally:
+            stop_event.set()
+            t.join(timeout=1.1)
+            # Clear the inline line
+            sys.stdout.write("\r" + " " * 100 + "\r")
+            sys.stdout.flush()
 
 
 # Singleton

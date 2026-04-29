@@ -1,5 +1,6 @@
 output/
 .agent_context/
+backend/.agent_context/
 __pycache__/
 *.pyc
 .env

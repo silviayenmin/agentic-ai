@@ -57,12 +57,17 @@ def check_file_exists(target: str, search_folder: str = DEFAULT_WORKSPACE) -> bo
     
     # Recursive search from the targeted directory
     for root, dirs, files in os.walk(search_dir):
+        # Check files
         for file in files:
-            # If we match the filename (case-insensitive)
             if file.lower() == target_basename.lower():
-                # Construct the full relative path found
                 current_full_path = os.path.join(root, file).replace('\\', '/')
-                # Check if it matches the target path provided (case-insensitive)
+                if current_full_path.lower().endswith(target.lower()):
+                    return True
+        
+        # Check directories
+        for d in dirs:
+            if d.lower() == target_basename.lower():
+                current_full_path = os.path.join(root, d).replace('\\', '/')
                 if current_full_path.lower().endswith(target.lower()):
                     return True
                 
