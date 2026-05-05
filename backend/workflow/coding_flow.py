@@ -1,4 +1,5 @@
 import asyncio
+import os
 from langgraph.graph import StateGraph, END
 from workflow.state import AgentState
 from agents.analyzer.agent import AnalyzerAgent
@@ -14,8 +15,21 @@ async def analyzer_node(state: AgentState):
     agent = AnalyzerAgent()
     agent.set_chat_history(state.get("chat_history", []))
     retry_count = state.get("retry_count", 0)
-    res = await agent.analyze(state["input"], retry_count=retry_count)
-    log.step("Analyzer", "Requirements analysis complete. Saved to .agent_context/analysis.md")
+    
+    analysis_path = ".agent_context/analysis.md"
+    if state.get("use_existing_analysis"):
+        if os.path.exists(analysis_path):
+            log.info("Analyzer", "Bypassing analysis: Loading existing analysis.md")
+            with open(analysis_path, "r", encoding="utf-8") as f:
+                res = f.read()
+        else:
+            log.warn("Analyzer", "Bypass requested but analysis.md not found. Regenerating...")
+            res = await agent.analyze(state["input"], retry_count=retry_count)
+            log.step("Analyzer", "Requirements analysis complete. Saved to .agent_context/analysis.md")
+    else:
+        res = await agent.analyze(state["input"], retry_count=retry_count)
+        log.step("Analyzer", "Requirements analysis complete. Saved to .agent_context/analysis.md")
+        
     return {"analysis": res, "chat_history": [f"Analyzer: {res}"]}
 
 
@@ -39,8 +53,21 @@ async def planner_node(state: AgentState):
     agent = PlannerAgent()
     agent.set_chat_history(state.get("chat_history", []))
     retry_count = state.get("retry_count", 0)
-    res = await agent.plan(state["analysis"], feedback=feedback, retry_count=retry_count)
-    log.step("Planner", "Technical plan updated.")
+    
+    plan_path = ".agent_context/plan.md"
+    if state.get("use_existing_plan") and not feedback:
+        if os.path.exists(plan_path):
+            log.info("Planner", "Bypassing planning: Loading existing plan.md")
+            with open(plan_path, "r", encoding="utf-8") as f:
+                res = f.read()
+        else:
+            log.warn("Planner", "Bypass requested but plan.md not found. Regenerating...")
+            res = await agent.plan(state["analysis"], feedback=feedback, retry_count=retry_count)
+            log.step("Planner", "Technical plan updated.")
+    else:
+        res = await agent.plan(state["analysis"], feedback=feedback, retry_count=retry_count)
+        log.step("Planner", "Technical plan updated.")
+        
     return {"plan": res, "chat_history": [f"Planner: {res}"]}
 
 

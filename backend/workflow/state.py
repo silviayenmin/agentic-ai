@@ -27,3 +27,7 @@ class AgentState(TypedDict):
     
     # Error tracking for the fallback workflow
     errors: Annotated[List[str], operator.add]
+    
+    # Flags to bypass generation and use existing files
+    use_existing_analysis: bool
+    use_existing_plan: bool

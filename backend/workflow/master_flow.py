@@ -22,10 +22,29 @@ async def master_router(state: AgentState):
     # We add the user input and the routing decision to history
     new_history = [f"User: {state['input']}", f"Master: Routed to {category}"]
     
+    # Check for bypass keywords
+    lower_input = state["input"].lower()
+    is_bypass = "bypass" in lower_input or "existing" in lower_input
+    
+    use_existing_analysis = False
+    use_existing_plan = False
+
+    if is_bypass:
+        if "analysis" in lower_input and "plan" not in lower_input:
+            use_existing_analysis = True
+        elif "plan" in lower_input and "analysis" not in lower_input:
+            use_existing_plan = True
+        else:
+            # Default to both if not specified or both mentioned
+            use_existing_analysis = True
+            use_existing_plan = True
+
     return {
         "next_step": category, 
         "retry_count": 0,
-        "chat_history": new_history
+        "chat_history": new_history,
+        "use_existing_analysis": use_existing_analysis,
+        "use_existing_plan": use_existing_plan
     }
 
 
