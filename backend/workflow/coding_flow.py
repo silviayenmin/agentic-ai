@@ -9,38 +9,118 @@ from agents.code_evaluator.agent import CodeEvaluatorAgent
 from logger import log
 
 
+def get_project_map(workspace_dir: str) -> str:
+    """Generates a simple text-based map of the project structure."""
+    import os
+    project_map = []
+    for root, dirs, files in os.walk(workspace_dir):
+        # Skip hidden folders and node_modules
+        if "node_modules" in root or ".git" in root or ".agent_context" in root:
+            continue
+        level = root.replace(workspace_dir, '').count(os.sep)
+        indent = ' ' * 4 * (level)
+        project_map.append(f"{indent}{os.path.basename(root)}/")
+        sub_indent = ' ' * 4 * (level + 1)
+        for f in files:
+            project_map.append(f"{sub_indent}{f}")
+    return "\n".join(project_map)
+
+
 async def analyzer_node(state: AgentState):
     log.info("CodingFlow", f"Starting analysis of user request: {state['input'][:50]}...")
+    
+    # Load existing context if it exists
+    import os
+    existing_analysis = ""
+    if os.path.exists(".agent_context/analysis.md"):
+        with open(".agent_context/analysis.md", "r", encoding="utf-8") as f:
+            existing_analysis = f.read()
+
+    # Bypass Check (Keep this for manual override)
+    if state["input"].strip().upper().startswith("BYPASS"):
+        log.info("CodingFlow", "Bypass mode detected. Loading existing analysis.md...")
+        return {"analysis": existing_analysis, "chat_history": ["System: Bypass mode - loaded analysis from file"]}
+
     agent = AnalyzerAgent()
     agent.set_chat_history(state.get("chat_history", []))
+    
+    # Generate a map of the current project structure
+    from config_loader import get_workspace_dir
+    project_map = get_project_map(get_workspace_dir())
+    
+    # Pass both new input and existing context
+    prompt = f"CURRENT PROJECT STRUCTURE:\n{project_map}\n\nUSER REQUEST: {state['input']}"
+    if existing_analysis:
+        prompt = f"EXISTING ANALYSIS:\n{existing_analysis}\n\n{prompt}\n\nUpdate the analysis by adding the new task. Maintain the inventory. USE ONLY REAL PATHS FROM THE STRUCTURE ABOVE."
+    
     retry_count = state.get("retry_count", 0)
-    res = await agent.analyze(state["input"], retry_count=retry_count)
-    log.step("Analyzer", "Requirements analysis complete. Saved to .agent_context/analysis.md")
+    res = await agent.analyze(prompt, retry_count=retry_count)
+    log.step("Analyzer", "Requirements analysis complete (Incremental).")
     return {"analysis": res, "chat_history": [f"Analyzer: {res}"]}
 
 
 async def dependency_node(state: AgentState):
     log.info("CodingFlow", "Checking system and project dependencies...")
+    
+    # Load existing context
+    import os
+    existing_deps = ""
+    if os.path.exists(".agent_context/dependencies.md"):
+        with open(".agent_context/dependencies.md", "r", encoding="utf-8") as f:
+            existing_deps = f.read()
+
+    # Bypass Check
+    if state["input"].strip().upper().startswith("BYPASS"):
+        log.info("CodingFlow", "Bypass mode - skipping dependency check.")
+        return {"dependencies": existing_deps, "chat_history": ["System: Bypass mode - skipped dependency check"]}
+
     agent = DependencyCheckerAgent()
     agent.set_chat_history(state.get("chat_history", []))
+    
+    # Combine analysis with existing dependencies
+    prompt = f"NEW ANALYSIS:\n{state['analysis']}"
+    if existing_deps:
+        prompt = f"EXISTING DEPENDENCIES:\n{existing_deps}\n\n{prompt}\n\nUpdate the dependency report with any new requirements while keeping the existing ones."
+
     retry_count = state.get("retry_count", 0)
-    res = await agent.check_dependencies(state["analysis"], retry_count=retry_count)
-    log.step("DependencyChecker", "Dependency report generated.")
+    res = await agent.check_dependencies(prompt, retry_count=retry_count)
+    log.step("DependencyChecker", "Dependency report updated (Incremental).")
     return {"dependencies": res, "chat_history": [f"Dependency Checker: {res}"]}
 
 
 async def planner_node(state: AgentState):
     feedback = state.get("evaluation_feedback", "")
+    
+    # Load existing context
+    import os
+    existing_plan = ""
+    if os.path.exists(".agent_context/plan.md"):
+        with open(".agent_context/plan.md", "r", encoding="utf-8") as f:
+            existing_plan = f.read()
+
+    # STRICT Bypass Check: Never let the AI overwrite a manual plan
+    if state["input"].strip().upper().startswith("BYPASS"):
+        log.info("CodingFlow", "Bypass mode active. Refusing to overwrite manual plan.md.")
+        return {"plan": existing_plan, "chat_history": ["System: Bypass mode - locked to manual plan.md"]}
+
+    from config_loader import get_workspace_dir
+    project_map = get_project_map(get_workspace_dir())
+    
     if feedback:
         log.info("CodingFlow", "Re-planning based on evaluator feedback...")
+        prompt = f"PROJECT STRUCTURE:\n{project_map}\n\nEXISTING PLAN:\n{existing_plan}\n\nFEEDBACK:\n{feedback}\n\nUpdate the plan to resolve the feedback. USE REAL PATHS ONLY."
     else:
-        log.info("CodingFlow", "Creating initial implementation plan...")
+        log.info("CodingFlow", "Updating implementation plan...")
+        if existing_plan:
+            prompt = f"PROJECT STRUCTURE:\n{project_map}\n\nEXISTING PLAN:\n{existing_plan}\n\nNEW ANALYSIS:\n{state['analysis']}\n\nAppend the new tasks. USE REAL PATHS ONLY."
+        else:
+            prompt = f"PROJECT STRUCTURE:\n{project_map}\n\nANALYSIS:\n{state['analysis']}\n\nCreate a plan using REAL PATHS ONLY."
         
     agent = PlannerAgent()
     agent.set_chat_history(state.get("chat_history", []))
     retry_count = state.get("retry_count", 0)
-    res = await agent.plan(state["analysis"], feedback=feedback, retry_count=retry_count)
-    log.step("Planner", "Technical plan updated.")
+    res = await agent.plan(prompt, feedback=feedback, retry_count=retry_count)
+    log.step("Planner", "Technical plan updated (Incremental).")
     return {"plan": res, "chat_history": [f"Planner: {res}"]}
 
 

@@ -2,7 +2,7 @@ import os
 import json
 import asyncio
 import sys
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from pathlib import Path
 from pydantic import BaseModel, Field
 from langchain_core.tools import tool
@@ -17,7 +17,11 @@ class CreateFileInput(BaseModel):
     )
     content: str = Field(
         default="",
-        description="Optional content to write into the file if it is created.",
+        description="Optional content to write into the file.",
+    )
+    CodeContent: Optional[str] = Field(
+        default=None,
+        description="Alias for content.",
     )
 
 
@@ -62,6 +66,9 @@ async def create_file_if_not_exists(file_path: str, content: str = "") -> Dict[s
         path.parent.mkdir(parents=True, exist_ok=True)
 
         # Create file
+        from logger import log
+        log.step("Creater", f"Writing {len(content)} chars to {path}")
+        
         with open(path, "w", encoding="utf-8") as f:
             f.write(content)
 
@@ -94,12 +101,13 @@ async def create_file_if_not_exists(file_path: str, content: str = "") -> Dict[s
 
 
 @tool(args_schema=CreateFileInput)
-async def create_file_tool(file_path: str, content: str = "") -> Dict[str, Any]:
+async def create_file_tool(file_path: str, content: str = "", CodeContent: Optional[str] = None) -> Dict[str, Any]:
     """
     Creates a file only if it does not already exist.
     Prevents overwriting and ensures safe file creation for agents.
     """
-    return await create_file_if_not_exists(file_path, content)
+    final_content = CodeContent if CodeContent is not None else content
+    return await create_file_if_not_exists(file_path, final_content)
 
 
 if __name__ == "__main__":

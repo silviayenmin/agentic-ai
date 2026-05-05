@@ -10,6 +10,7 @@ from .creater import create_file_tool
 from .list_dir import list_directory_tool
 from .delete_file import delete_file_tool
 from .delete_directory import delete_directory_tool
+from .create_directory import create_directory
 from .task_manager import update_task_status, get_task_list
 __all__ = [
     "check_file_permissions",
@@ -28,4 +29,5 @@ __all__ = [
     "delete_directory_tool",
     "update_task_status",
     "get_task_list",
+    "create_directory",
 ]

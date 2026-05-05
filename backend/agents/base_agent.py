@@ -194,10 +194,12 @@ class BaseAgent:
     # Normalize argument keys that LLMs commonly get wrong.
     _ARG_ALIASES: Dict[str, Dict[str, str]] = {
         "write_to_file":    {"file_path": "file_name", "filename": "file_name", "path": "file_name"},
-        "create_file_tool": {"file_name": "file_path", "filename": "file_path", "path": "file_path"},
+        "create_file_tool": {"file_name": "file_path", "filename": "file_path", "path": "file_path", "CodeContent": "content"},
         "read_file_tool":   {"file_name": "file_path", "filename": "file_path", "path": "file_path"},
         "list_directory_tool": {"directory": "path", "dir": "path", "folder": "path"},
         "check_file_exists": {"file_name": "target", "filename": "target", "file": "target", "path": "target"},
+        "create_directory": {"directory": "path", "dir": "path", "folder": "path"},
+        "patch_file": {"file_name": "file_path", "filename": "file_path", "path": "file_path", "old_content": "target", "new_content": "replacement", "search": "target", "replace": "replacement"},
     }
 
     async def run_tool(self, tool_name: str, tool_args: Dict[str, Any]) -> str:
@@ -219,12 +221,33 @@ class BaseAgent:
             aliases = self._ARG_ALIASES.get(tool_name, {})
             final_args = {aliases.get(k, k): v for k, v in final_args.items()}
 
-            # Specialized logic for read_file_tool (relative paths)
-            if tool_name == "read_file_tool":
-                raw = final_args.get("file_path") or final_args.pop("file_name", None)
-                if raw and not os.path.isabs(raw):
-                    raw = os.path.join(get_workspace_dir(), raw)
-                final_args["file_path"] = raw
+            # UNIVERSAL PATH NORMALIZATION & HALLUCINATION GUARD
+            path_keys = ["file_path", "path", "target", "filename", "directory"]
+            from config_loader import get_workspace_dir
+            workspace = get_workspace_dir()
+            
+            for pk in path_keys:
+                if pk in final_args and isinstance(final_args[pk], str) and final_args[pk]:
+                    raw = final_args[pk]
+                    
+                    # Hallucination Guard: Block placeholder paths
+                    placeholders = ["/path/to/", "your-project", "example.com", "<project_root>", "./path/"]
+                    if any(p in raw.lower() for p in placeholders):
+                        log.warn(self.name, f"Blocked hallucinated path: {raw}")
+                        return f"Error: '{raw}' appears to be a placeholder path. Please use the REAL paths from the project structure provided in the context (e.g. 'yenmintech/src/...')."
+
+                    # Strip hallucinated prefixes
+                    if raw.startswith("output/") or raw.startswith("output\\"):
+                        raw = raw[7:]
+                    
+                    # Ensure it's inside the workspace
+                    if not os.path.isabs(raw):
+                        final_args[pk] = os.path.normpath(os.path.join(workspace, raw))
+
+            # DEBUG: Log exact arguments being sent to the tool
+            if "content" in final_args:
+                c = final_args.get("content")
+                log.step(self.name, f"Tool '{tool_name}' payload size: {len(str(c))} chars")
 
             # 2. Log the call
             log.tool_call(tool_name, final_args)
